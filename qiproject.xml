@@ -2,5 +2,5 @@
   <qibuild name="libqi-python">
     <depends runtime="true" buildtime="true" names="libqimessaging" />
   </qibuild>
-  <qipython name="qi" />
+  <qipython name="libqi-python" />
 </project>
