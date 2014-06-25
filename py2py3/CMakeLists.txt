@@ -51,7 +51,7 @@ qi_create_lib(qipython${pyver} SHARED
   ${_sources}
 )
 
-qi_use_lib(qipython${pyver} BOOST_PYTHON${pyver} PYTHON${pyver} QI QITYPE QIMESSAGING )
+qi_use_lib(qipython${pyver} BOOST_PYTHON${pyver} PYTHON${pyver} QI)
 
 qi_stage_lib(qipython${pyver})
 
@@ -86,4 +86,3 @@ else()
   )
   qi_use_lib(_qi3 qipython3)
 endif()
-

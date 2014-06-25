@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(qipython)
+project(libqi-python)
 find_package(qibuild)
 
 qi_sanitize_compile_flags(HIDDEN_SYMBOLS)
