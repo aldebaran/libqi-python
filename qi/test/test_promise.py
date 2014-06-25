@@ -9,7 +9,7 @@
 import time
 import threading
 
-from qi import Promise
+from qi import Promise, PromiseNoop
 
 def waiterSetValue(promise, waiter):
     #time.sleep(t)
@@ -89,6 +89,11 @@ def test_many_promises_wait_cancel():
         else:
             assert f.value() == "mjolk"
 
+def test_future_cancel_request():
+    promise = Promise(PromiseNoop)
+    future = promise.future()
+    future.cancel()
+    assert promise.isCancelRequested()
 
 def test_future_no_timeout():
     p = Promise()

@@ -132,7 +132,11 @@ namespace qi {
 
           .def("future", &PyPromise::future,
                "future() -> qi.Future\n"
-               "Get a qi.Future from the promise, you can get multiple from the same promise.");
+               "Get a qi.Future from the promise, you can get multiple from the same promise.")
+
+          .def("isCancelRequested", &PyPromise::isCancelRequested,
+               "isCancelRequested() -> bool\n"
+               "Return true if the future associated with the promise asked for cancelation");
 
       boost::python::class_<PyFuture>("Future", boost::python::no_init)
           .def("value", &PyFuture::value, (boost::python::args("timeout") = qi::FutureTimeout_Infinite),

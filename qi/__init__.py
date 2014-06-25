@@ -81,6 +81,10 @@ from .logging import fatal, error, warning, info, verbose, Logger
 from .logging import getLogger, logFatal, logError, logWarning, logInfo, logVerbose, logDebug  #deprecated
 from .translator import defaultTranslator, tr, Translator
 
+def PromiseNoop(*args, **kwargs):
+    """No operation function for use with Promise to make it cancellable
+    without doing anything special"""
+    pass
 
 #rename isinstance here. (isinstance should not be used in this file)
 isinstance = _isinstance
@@ -121,6 +125,7 @@ __all__ = ["FutureState",
            "FutureTimeout",
            "Future",
            "Promise",
+           "PromiseNoop",
            "Property",
            "Session",
            "Signal",
