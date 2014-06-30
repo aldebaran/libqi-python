@@ -4,3 +4,4 @@ build*
 *.pyc
 CMakeLists.txt.user
 *.suo
+*.egg-info
