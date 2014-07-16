@@ -231,6 +231,10 @@ namespace qi { namespace py {
                ":raise: a RuntimeError if the session is not connected\n"
                )
 
+          .def("isConnected", &Session::isConnected,
+               "isConnected() -> bool\n"
+               ":return: true if the session is connected")
+
           .def_readonly("connected", &PySession::connected)
 
           .def_readonly("disconnected", &PySession::disconnected)
