@@ -123,6 +123,16 @@ namespace qi { namespace py {
         return toPyFutureAsync(fut, _async);
       }
 
+      boost::python::object isConnected() {
+        bool res;
+        {
+          GILScopedUnlock _unlock;
+          res = _ses->isConnected();
+        }
+        return boost::python::object(res);
+      }
+
+
       boost::python::object registerService(const std::string &name, boost::python::object obj, bool _async=false) {
         qi::AnyObject anyobj = qi::AnyReference::from(obj).toObject();
         qi::Future<unsigned int> fut;
@@ -231,7 +241,7 @@ namespace qi { namespace py {
                ":raise: a RuntimeError if the session is not connected\n"
                )
 
-          .def("isConnected", &Session::isConnected,
+          .def("isConnected", &PySession::isConnected,
                "isConnected() -> bool\n"
                ":return: true if the session is connected")
 
