@@ -3,11 +3,18 @@
 **  See COPYING for the license
 */
 #include <qipython/pyproperty.hpp>
+#include <qipython/pythreadsafeobject.hpp>
+#include <qipython/error.hpp>
 #include <boost/python.hpp>
 #include <qi/property.hpp>
 #include <qi/anyobject.hpp>
 
 namespace qi { namespace py {
+
+    void pyPropertyCb(const qi::AnyValue& val, const PyThreadSafeObject& callable) {
+      GILScopedLock _lock;
+      PY_CATCH_ERROR(callable.object()(val.to<boost::python::object>()));
+    }
 
     class PyProperty : public qi::GenericProperty {
     public:
@@ -32,6 +39,16 @@ namespace qi { namespace py {
       void setVal(boost::python::object obj) {
         qi::GenericProperty::setValue(obj);
       }
+
+      void addCallback(const boost::python::object &callable) {
+        PyThreadSafeObject obj(callable);
+        if (!PyCallable_Check(callable.ptr()))
+          throw std::runtime_error("Not a callable");
+        {
+          GILScopedUnlock _unlock;
+          connect(boost::bind<void>(&pyPropertyCb, _1, obj));
+        }
+      }
     };
 
     class PyProxyProperty {
@@ -49,6 +66,16 @@ namespace qi { namespace py {
       //TODO: support async
       void setValue(boost::python::object obj) {
         _obj.setProperty(_sigid, qi::AnyValue::from(obj));
+      }
+
+      void addCallback(const boost::python::object &callable) {
+        PyThreadSafeObject obj(callable);
+        if (!PyCallable_Check(callable.ptr()))
+          throw std::runtime_error("Not a callable");
+        {
+          GILScopedUnlock _unlock;
+          _obj.connect(_sigid, AnyFunction::from(boost::bind<void>(&pyPropertyCb, _1, obj)));
+        }
       }
 
     private:
@@ -83,11 +110,18 @@ namespace qi { namespace py {
                "setValue(value) -> None\n"
                ":param value: the value of the property\n"
                "\n"
-               "set the value of the property");
+               "set the value of the property")
+
+          .def("addCallback", &PyProperty::addCallback,
+               "addCallback(cb) -> None\n"
+               ":param cb: the callback to call when the property changes\n"
+               "\n"
+               "add a callback to the property");
 
       boost::python::class_<PyProxyProperty>("_ProxyProperty", boost::python::no_init)
           .def("value", &PyProxyProperty::value)
-          .def("setValue", &PyProxyProperty::setValue, (boost::python::arg("value")));
+          .def("setValue", &PyProxyProperty::setValue, (boost::python::arg("value")))
+          .def("addCallback", &PyProxyProperty::addCallback);
     }
 
   }
