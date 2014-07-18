@@ -7,9 +7,15 @@
 #ifndef _QIPYTHON_PYOBJECTFACTORY_HPP_
 #define _QIPYTHON_PYOBJECTFACTORY_HPP_
 
+#include <qipython/api.hpp>
+#include <qi/anymodule.hpp>
+#include <string>
+
 namespace qi {
   namespace py {
     void export_pyobjectfactory();
+
+    QIPYTHON_API qi::AnyModule importPyModule(const qi::ModuleInfo& name);
   }
 }
 

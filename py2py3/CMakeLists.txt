@@ -13,7 +13,7 @@ set(_headers
   ../qipython/pythreadsafeobject.hpp
   ../qipython/pysignal.hpp
   ../qipython/pyasync.hpp
-  ../qipython/pyobjectfactory.hpp
+  ../qipython/pymodule.hpp
   ../qipython/pylog.hpp
   ../qipython/pypath.hpp
   ../qipython/pytranslator.hpp
@@ -33,7 +33,7 @@ set(_sources
   ../src/pyproperty.cpp
   ../src/pysignal.cpp
   ../src/pyasync.cpp
-  ../src/pyobjectfactory.cpp
+  ../src/pymodule.cpp
   ../src/pylog.cpp
   ../src/pypath.cpp
   ../src/pytranslator.cpp

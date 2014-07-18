@@ -19,3 +19,8 @@ if (WITH_PYTHON3 AND WITH_BOOST_PYTHON3)
   set(pyver "3")
   add_subdirectory(py2py3 "python3")
 endif()
+
+
+qi_create_lib(qimodule_python_plugin SHARED src/qimodule_python_plugin.cpp
+              SUBFOLDER qi/plugins/
+              DEPENDS qi qipython)
