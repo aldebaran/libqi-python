@@ -14,5 +14,5 @@ class TestPython2:
    def get(self):
       return 43
 
-qi.registerObjectFactory("TestPython", TestPython)
-qi.registerObjectFactory("TestPython2", TestPython2)
+#qi.registerObjectFactory("TestPython", TestPython)
+#qi.registerObjectFactory("TestPython2", TestPython2)
