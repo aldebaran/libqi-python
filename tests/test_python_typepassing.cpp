@@ -66,8 +66,7 @@ TEST_F(TypePassing, Int)
         );
   }
   registerService();
-  qi::FutureSync<int> f = getService().call<int>("func");
-  ASSERT_EQ(42, f.value());
+  ASSERT_EQ(42, getService().call<int>("func"));
 }
 
 //Long have been merged with Int
@@ -83,8 +82,7 @@ TEST_F(TypePassing, Long)
         );
   }
   registerService();
-  qi::FutureSync<int> f = getService().call<int>("func");
-  ASSERT_EQ(42, f.value());
+  ASSERT_EQ(42, getService().call<int>("func"));
 }
 #endif
 
@@ -99,8 +97,7 @@ TEST_F(TypePassing, Bool)
         );
   }
   registerService();
-  qi::FutureSync<bool> f = getService().call<bool>("func");
-  ASSERT_EQ(true, f.value());
+  ASSERT_EQ(true, getService().call<bool>("func"));
 }
 
 TEST_F(TypePassing, Float)
@@ -114,8 +111,7 @@ TEST_F(TypePassing, Float)
         );
   }
   registerService();
-  qi::FutureSync<float> f = getService().call<float>("func");
-  ASSERT_EQ(2.5, f.value());
+  ASSERT_EQ(2.5, getService().call<float>("func"));
 }
 
 TEST_F(TypePassing, String)
@@ -129,8 +125,7 @@ TEST_F(TypePassing, String)
         );
   }
   registerService();
-  qi::FutureSync<std::string> f = getService().call<std::string>("func");
-  ASSERT_EQ("can i help you?", f.value());
+  ASSERT_EQ("can i help you?", getService().call<std::string>("func"));
 }
 
 TEST_F(TypePassing, ByteArray)
@@ -144,8 +139,7 @@ TEST_F(TypePassing, ByteArray)
         );
   }
   registerService();
-  qi::FutureSync<std::string> f = getService().call<std::string>("func");
-  ASSERT_EQ("can i help you?", f.value());
+  ASSERT_EQ("can i help you?", getService().call<std::string>("func"));
 }
 
 TEST_F(TypePassing, List)
@@ -159,12 +153,11 @@ TEST_F(TypePassing, List)
         );
   }
   registerService();
-  qi::FutureSync<std::vector<int> > f = getService().call<std::vector<int> >("func");
   std::vector<int> expected;
   expected.push_back(1);
   expected.push_back(2);
   expected.push_back(3);
-  ASSERT_EQ(expected, f.value());
+  ASSERT_EQ(expected, getService().call<std::vector<int> >("func"));
 }
 
 TEST_F(TypePassing, Dict)
@@ -178,12 +171,11 @@ TEST_F(TypePassing, Dict)
         );
   }
   registerService();
-  qi::FutureSync<std::map<std::string, int> > f = getService().call<std::map<std::string, int> >("func");
   std::map<std::string, int> expected;
   expected["one"] = 1;
   expected["two"] = 2;
   expected["three"] = 3;
-  ASSERT_EQ(expected, f.value());
+  ASSERT_EQ(expected, (getService().call<std::map<std::string, int> >("func")));
 }
 
 TEST_F(TypePassing, Recursive)
@@ -197,12 +189,11 @@ TEST_F(TypePassing, Recursive)
         );
   }
   registerService();
-  qi::FutureSync<qi::AnyValue> f = getService().call<qi::AnyValue>("func");
-  qi::AnyReference v = qi::AnyReference::from(f.value());
-  ASSERT_EQ(1, (*v)["one"].toInt());
-  ASSERT_EQ(1, (*(*v)["two"])[0].toInt());
-  ASSERT_EQ(2, (*(*v)["two"])[1].toInt());
-  ASSERT_EQ("answer", (*(*v)["three"])[42].toString());
+  qi::AnyValue v = getService().call<qi::AnyValue>("func");
+  ASSERT_EQ(1, v["one"].toInt());
+  ASSERT_EQ(1, (*v["two"])[0].toInt());
+  ASSERT_EQ(2, (*v["two"])[1].toInt());
+  ASSERT_EQ("answer", (*v["three"])[42].toString());
 }
 
 TEST_F(TypePassing, ReverseDict)
@@ -220,8 +211,7 @@ TEST_F(TypePassing, ReverseDict)
   expected["one"] = 1;
   expected["two"] = 2;
   expected["three"] = 3;
-  qi::FutureSync<bool> f = getService().call<bool>("func", expected);
-  ASSERT_TRUE(f.value());
+  ASSERT_TRUE(getService().call<bool>("func", expected));
 }
 
 PyThreadState *mainstate;
@@ -255,10 +245,7 @@ int main(int argc, char **argv) {
       boost::python::object sys(boost::python::import("sys"));
       boost::python::object os(boost::python::import("os"));
       sys.attr("path").attr("insert")(0, src_dir);
-      sys.attr("path").attr("insert")(0, os.attr("path").attr("join")(src_dir,
-            "test"));
-      sys.attr("path").attr("insert")(0, os.attr("path").attr("join")(sdk_dir,
-            "lib"));
+      sys.attr("path").attr("insert")(0, sdk_dir);
       PyRun_SimpleString(
           "import qi\n"
           "local = 'tcp://127.0.0.1:5555'\n"

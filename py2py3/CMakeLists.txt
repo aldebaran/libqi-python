@@ -86,3 +86,5 @@ else()
   )
   qi_use_lib(_qi3 qipython3)
 endif()
+
+add_subdirectory(../tests ${CMAKE_CURRENT_BINARY_DIR}/tests)
