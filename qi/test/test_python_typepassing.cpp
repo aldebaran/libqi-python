@@ -266,7 +266,8 @@ int main(int argc, char **argv) {
     }
     catch(...)
     {
-      qiLogError() << PyFormatError();
+      std::string s = PyFormatError();
+      qiLogError() << s;
       return 1;
     }
   }

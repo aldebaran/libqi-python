@@ -19,7 +19,8 @@
    }                                                        \
    catch (const boost::python::error_already_set &)         \
    {                                                        \
-     qiLogError("python") << PyFormatError();               \
+     std::string s = PyFormatError();                       \
+     qiLogError("python") << s;                             \
    }
 
 QIPYTHON_API std::string PyFormatError();

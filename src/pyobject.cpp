@@ -195,7 +195,8 @@ namespace qi { namespace py {
         gvret = qi::AnyReference::from(ret).clone();
         qiLogDebug() << "method returned:" << qi::encodeJSON(gvret);
       } catch (const boost::python::error_already_set &e) {
-        throw std::runtime_error("python failed");
+        qi::py::GILScopedLock _lock;
+        throw std::runtime_error("Python error: " + PyFormatError());
       }
       return gvret;
     }
@@ -256,7 +257,8 @@ namespace qi { namespace py {
         //returns: (args, varargs, keywords, defaults)
         tu = inspect.attr("getargspec")(method);
       } catch(const boost::python::error_already_set& e) {
-        qiLogError() << "error while register function '" << key << "': " << PyFormatError();
+        std::string s = PyFormatError();
+        qiLogError() << "Error while registering function '" << key << "': " << s;
         return;
       }
 
