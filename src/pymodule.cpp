@@ -20,7 +20,7 @@ namespace qi {
     class PyCreateException : std::exception
     {
     public:
-      PyCreateException(const std::string &name) : _msg(name + "not found") {}
+      PyCreateException(const std::string &name) : _msg(name + " not found") {}
       virtual ~PyCreateException() throw() {}
       char const * what() const throw() { return _msg.c_str(); }
 
@@ -84,11 +84,26 @@ namespace qi {
       PyModule      mod = boost::python::extract<PyModule>(pyargs[0]);
       std::string   objectName = boost::python::extract<std::string>(pyargs[1]);
       qi::AnyObject object;
-
+      qi::AnyReference ret;
       qi::AnyReferenceVector args;
-      for (int i = 1; i < len; ++i)
+      for (int i = 2; i < len; ++i)
         args.push_back(AnyReference::from(boost::python::object(pyargs[i])));
-      //TODO object = mod._mod->createObject(objectName, args);
+
+      {
+        GILScopedUnlock _unlock;
+        ret = mod._mod.metaCall(objectName, args).value();
+        try
+        {
+          object = ret.to<qi::AnyObject>();
+          ret.destroy();
+        }
+        catch(std::exception& e)
+        {
+          qiLogDebug() << "Error while converting factory result: " << e.what();
+          ret.destroy();
+          throw;
+        }
+      }
 
       if(!object)
         throw PyCreateException(objectName);
