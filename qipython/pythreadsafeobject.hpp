@@ -8,6 +8,7 @@
 #define _QIPYTHON_PYTHREADSAFEOBJECT_HPP_
 
 #include <boost/python.hpp>
+#include <qipython/gil.hpp>
 
 namespace qi {
   namespace py {

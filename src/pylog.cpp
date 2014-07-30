@@ -31,7 +31,7 @@ namespace qi {
 
     static void pysetlevel(int level)
     {
-      qi::log::setVerbosity((qi::LogLevel)level);
+      qi::log::setLogLevel((qi::LogLevel)level);
     }
 
     static void pysetcontext(int context)
@@ -41,7 +41,7 @@ namespace qi {
 
     static void pysetfilters(const std::string& filters)
     {
-      qi::log::setVerbosity(filters);
+      qi::log::addFilters(filters);
     }
 
 

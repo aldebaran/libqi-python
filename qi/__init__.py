@@ -3,7 +3,7 @@
 ##  - Cedric GESTES <gestes@aldebaran-robotics.com>
 ##  - Pierre ROULLON <proullon@aldebaran-robotics.com>
 ##
-## Copyright (C) 2010 - 2013 Aldebaran Robotics
+## Copyright (C) 2010 - 2014 Aldebaran Robotics
 ##
 
 """ QiMessaging Python bindings
@@ -62,8 +62,8 @@ from _qi import Application as _Application
 from _qi import ApplicationSession as _ApplicationSession
 from _qi import ( FutureState, FutureTimeout, Future, Promise,
                   Property, Session, Signal,
-                  createObject, registerObjectFactory,
                   async, PeriodicTask)
+from _qi import ( module, listModules )
 from . import path
 from ._type import ( Void, Bool,
                      Int8, UInt8,
@@ -138,7 +138,8 @@ __all__ = ["FutureState",
            "bind", "nobind", "singleThreaded", "multiThreaded",
            "fatal", "error", "warning", "info", "verbose",
            "getLogger", "logFatal", "logError", "logWarning", "logInfo", "logVerbose", "logDebug",  #deprecated
-           "Logger", "defaultTranslator", "tr", "Translator"
+           "Logger", "defaultTranslator", "tr", "Translator",
+           "module", "listModules"
 ]
 
 import atexit

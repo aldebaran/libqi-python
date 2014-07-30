@@ -9,7 +9,7 @@
 #include <qipython/pyobject.hpp>
 #include <qipython/pysignal.hpp>
 #include <qipython/pyproperty.hpp>
-#include <qipython/pyobjectfactory.hpp>
+#include <qipython/pymodule.hpp>
 #include <qipython/pyasync.hpp>
 #include <qipython/pylog.hpp>
 #include <qipython/pypath.hpp>

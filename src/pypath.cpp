@@ -60,6 +60,12 @@ namespace qi {
       return qi::AnyReference::from(vect).to<boost::python::list>();
     }
 
+    static boost::python::list pysdkprefixes()
+    {
+      std::vector<std::string> vect = qi::path::detail::getSdkPrefixes();
+      return qi::AnyReference::from(vect).to<boost::python::list>();
+    }
+
     void export_pypath()
     {
       boost::python::def("sdkPrefix", &qi::path::sdkPrefix,
@@ -181,6 +187,26 @@ namespace qi {
                          ":return: The file path.\n"
                          "\n"
                          "Get the writable configuration files path for users.");
+
+      boost::python::def("sdkPrefixes", &pysdkprefixes,
+                         "sdkPrefixes() -> list\n"
+                         ":return: The list of sdk prefix.\n"
+                         "\n"
+                         "List of SDK prefix.");
+
+      boost::python::def("addOptionalSdkPrefix", &qi::path::detail::addOptionalSdkPrefix,
+                         "addOptionalSdkPrefix(path)\n"
+                         ":param: an sdk prefix.\n"
+                         "\n"
+                         "add a new SDK path.");
+
+      boost::python::def("clearOptionalSdkPrefix", &qi::path::detail::clearOptionalSdkPrefix,
+                         "clearOptionalSdkPrefix()\n"
+                         "\n"
+                         "Clear all optional sdk prefix.");
+
+
+
     }
   }
 }

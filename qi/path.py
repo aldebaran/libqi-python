@@ -1,6 +1,8 @@
-from _qi import  findBin, findLib, findConf, findData, listData, confPaths, \
-                     dataPaths, binPaths, libPaths, setWritablePath, \
-                     userWritableDataPath, userWritableConfPath, sdkPrefix
+from _qi import  ( findBin, findLib, findConf, findData, listData, confPaths,
+                     dataPaths, binPaths, libPaths, setWritablePath,
+                     userWritableDataPath, userWritableConfPath,
+                     sdkPrefix, sdkPrefixes, addOptionalSdkPrefix, clearOptionalSdkPrefix,
+                     )
 
 
 __all__ = [ "findBin",
@@ -15,4 +17,7 @@ __all__ = [ "findBin",
             "setWritablePath",
             "userWritableDataPath",
             "userWritableConfPath",
-            "sdkPrefix" ]
+            "sdkPrefix",
+            "sdkPrefixes",
+            "addOptionalSdkPrefix",
+            "clearOptionalSdkPrefix" ]

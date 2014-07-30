@@ -13,7 +13,7 @@ set(_headers
   ../qipython/pythreadsafeobject.hpp
   ../qipython/pysignal.hpp
   ../qipython/pyasync.hpp
-  ../qipython/pyobjectfactory.hpp
+  ../qipython/pymodule.hpp
   ../qipython/pylog.hpp
   ../qipython/pypath.hpp
   ../qipython/pytranslator.hpp
@@ -33,7 +33,7 @@ set(_sources
   ../src/pyproperty.cpp
   ../src/pysignal.cpp
   ../src/pyasync.cpp
-  ../src/pyobjectfactory.cpp
+  ../src/pymodule.cpp
   ../src/pylog.cpp
   ../src/pypath.cpp
   ../src/pytranslator.cpp
@@ -51,7 +51,7 @@ qi_create_lib(qipython${pyver} SHARED
   ${_sources}
 )
 
-qi_use_lib(qipython${pyver} BOOST_PYTHON${pyver} PYTHON${pyver} QI QITYPE QIMESSAGING )
+qi_use_lib(qipython${pyver} BOOST_PYTHON${pyver} PYTHON${pyver} QI)
 
 qi_stage_lib(qipython${pyver})
 
@@ -86,4 +86,3 @@ else()
   )
   qi_use_lib(_qi3 qipython3)
 endif()
-

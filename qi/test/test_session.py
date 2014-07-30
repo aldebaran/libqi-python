@@ -21,19 +21,21 @@ def test_session_callbacks():
     sd.listenStandalone(local)
 
     s = qi.Session()
-    assert isconnected is False
+    assert not s.isConnected()
+    assert not isconnected
     s.connected.connect(callback_conn)
     s.disconnected.connect(callback_disconn)
     s.connect(sd.endpoints()[0])
     time.sleep(0.01)
 
-    assert isconnected is True
-    assert isdisconnected is False
+    assert s.isConnected()
+    assert isconnected
+    assert not isdisconnected
 
     s.close()
     time.sleep(0.01)
 
-    assert isdisconnected is True
+    assert isdisconnected
 
 
 def main():
