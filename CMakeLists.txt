@@ -10,6 +10,8 @@ qi_add_optional_package(BOOST_PYTHON3)
 # Generate each version in a separated build folder.
 # (include_directories clash otherwise)
 
+add_subdirectory(tests)
+
 if (WITH_PYTHON AND WITH_BOOST_PYTHON)
   set(pyver "")
   add_subdirectory(py2py3 "python2")
