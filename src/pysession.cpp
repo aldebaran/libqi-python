@@ -96,6 +96,15 @@ namespace qi { namespace py {
         return toPyFutureAsync(fut, _async);
       }
 
+      boost::python::object waitForService(const std::string &name, bool _async=false) {
+        qi::Future<void> fut;
+        {
+          GILScopedUnlock _unlock;
+          fut = _ses->waitForService(name);
+        }
+        return toPyFutureAsync(fut, _async);
+      }
+
       boost::python::object listen(const std::string &url, bool _async=false) {
         qi::Future<void> fut;
         {
@@ -213,6 +222,12 @@ namespace qi { namespace py {
                ":return: an Object representing a Service. The service could have been registered to the ServiceDirectory by this session or by another.\n"
                ":raise: a RuntimeError if the service is not found.\n"
                "\n")
+
+          .def("waitForService", &PySession::waitForService, (boost::python::arg("name"), boost::python::arg("_async") = false),
+               "waitForService(name) -> void\n"
+               ":param name: string. A human readable name associated to the service.\n"
+               "\n"
+               "Wait until a service is available.")
 
           .def("services", &PySession::services, (boost::python::arg("_async") = false),
                "services() -> list\n"

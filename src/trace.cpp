@@ -80,7 +80,8 @@ namespace qi {
       }
       catch (bpy::error_already_set& e)
       {
-        qiLogError() << "Cannot get trace: " << PyFormatError();
+        std::string s = PyFormatError();
+        qiLogError() << "Cannot get trace: " << s;
         return "";
       }
     }

@@ -23,6 +23,7 @@ set(_headers
 )
 
 set(_sources
+  ../src/pyobject_p.hpp
   ../src/pyinit.cpp
   ../src/pyexport.cpp
   ../src/pyapplication.cpp
@@ -86,3 +87,5 @@ else()
   )
   qi_use_lib(_qi3 qipython3)
 endif()
+
+add_subdirectory(../testspy ${CMAKE_CURRENT_BINARY_DIR}/testspy)

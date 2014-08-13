@@ -15,11 +15,34 @@
 #include <qi/jsoncodec.hpp>
 #include <qipython/gil.hpp>
 
+#include "pyobject_p.hpp"
 
 qiLogCategory("qipy.object");
 
 namespace qi { namespace py {
 
+    boost::python::object PyQiFunctor::operator()(boost::python::tuple pyargs, boost::python::dict pykwargs) {
+      qi::AnyValue val = qi::AnyValue::from(pyargs);
+      bool async = boost::python::extract<bool>(pykwargs.get("_async", false));
+      std::string funN = boost::python::extract<std::string>(pykwargs.get("_overload", _funName));
+      // TODO: make it so the message under does not need to be uncommented
+      //        qiLogDebug() << "calling a method: " << funN << " args:" << qi::encodeJSON(val);
+
+      qi::Future<qi::AnyValue> fut;
+      qi::Promise<qi::AnyValue> res;
+      PyPromise pyprom(res);
+      {
+        //calling c++, so release the GIL.
+        GILScopedUnlock _unlock;
+        qi::Future<qi::AnyReference> fmeta = _object.metaCall(funN, val.content().asTupleValuePtr(), async ? MetaCallType_Queued : MetaCallType_Direct);
+        //because futureAdapter support AnyRef containing Future<T>  (that will be converted to a Future<T>
+        // instead of Future<Future<T>>
+        fmeta.connect(boost::bind<void>(&detail::futureAdapter<qi::AnyValue>, _1, res));
+        if (!async)
+          return res.future().value().to<boost::python::object>();
+      }
+      return boost::python::object(pyprom.future());
+    }
 
     boost::python::object importInspect() {
       static bool plouf = false;
@@ -31,47 +54,6 @@ namespace qi { namespace py {
       return obj;
     }
 
-    struct PyQiFunctor {
-    public:
-      PyQiFunctor(const std::string &funName, qi::AnyObject obj)
-        : _object(obj)
-        , _funName(funName)
-      {}
-
-      boost::python::object operator()(boost::python::tuple pyargs, boost::python::dict pykwargs) {
-        qi::AnyValue val = qi::AnyValue::from(pyargs);
-        bool async = boost::python::extract<bool>(pykwargs.get("_async", false));
-        std::string funN = boost::python::extract<std::string>(pykwargs.get("_overload", _funName));
-        qiLogDebug() << "calling a method: " << funN << " args:" << qi::encodeJSON(val);
-
-
-        qi::Future<qi::AnyValue> fut;
-        qi::Promise<qi::AnyValue> res(qi::FutureCallbackType_Sync);
-        PyPromise pyprom(res);
-        {
-          //calling c++, so release the GIL.
-          GILScopedUnlock _unlock;
-          qi::Future<qi::AnyReference> fmeta = _object.metaCall(funN, val.content().asTupleValuePtr());
-          //because futureAdapter support AnyRef containing Future<T>  (that will be converted to a Future<T>
-          // instead of Future<Future<T>>
-          fmeta.connect(boost::bind<void>(&detail::futureAdapter<qi::AnyValue>, _1, res));
-          fut = res.future();
-        }
-        if (!async) {
-          {
-            //do not lock while waiting!
-            GILScopedUnlock _unlock;
-            fut.wait();
-          }
-          return fut.value().to<boost::python::object>();
-        }
-        return boost::python::object(pyprom.future());
-      }
-
-    public:
-      qi::AnyObject _object;
-      std::string   _funName;
-    };
 
     void populateMethods(boost::python::object pyobj, qi::AnyObject obj) {
       qi::MetaObject::MethodMap           mm = obj.metaObject().methodMap();
@@ -122,30 +104,7 @@ namespace qi { namespace py {
     }
 
 
-    class PyQiObject {
-    public:
-      PyQiObject()
-      {}
 
-      PyQiObject(const qi::AnyObject &obj)
-        : _object(obj)
-      {}
-
-      boost::python::object call(boost::python::str pyname, boost::python::tuple pyargs, boost::python::dict pykws) {
-        return PyQiFunctor(boost::python::extract<std::string>(pyname), _object)(pyargs, pykws);
-      }
-
-      boost::python::object metaObject() {
-        return qi::AnyReference::from(_object.metaObject()).to<boost::python::object>();
-      }
-
-      qi::AnyObject object() {
-        return _object;
-      }
-
-    private:
-      qi::AnyObject _object;
-    };
 
     boost::python::object makePyQiObject(qi::AnyObject obj, const std::string &name) {
       boost::python::object result = boost::python::object(qi::py::PyQiObject(obj));
@@ -195,7 +154,8 @@ namespace qi { namespace py {
         gvret = qi::AnyReference::from(ret).clone();
         qiLogDebug() << "method returned:" << qi::encodeJSON(gvret);
       } catch (const boost::python::error_already_set &e) {
-        throw std::runtime_error("python failed");
+        qi::py::GILScopedLock _lock;
+        throw std::runtime_error("Python error: " + PyFormatError());
       }
       return gvret;
     }
@@ -256,7 +216,8 @@ namespace qi { namespace py {
         //returns: (args, varargs, keywords, defaults)
         tu = inspect.attr("getargspec")(method);
       } catch(const boost::python::error_already_set& e) {
-        qiLogError() << "error while register function '" << key << "': " << PyFormatError();
+        std::string s = PyFormatError();
+        qiLogError() << "Error while registering function '" << key << "': " << s;
         return;
       }
 
@@ -371,28 +332,10 @@ namespace qi { namespace py {
       return gob.object(boost::bind<void>(&doNothing, _1, obj));
     }
 
-    static boost::python::object pyobjectParamShrinker(boost::python::tuple args, boost::python::dict kwargs) {
-      PyQiObject& pys = boost::python::extract<PyQiObject&>(args[0]);
-      boost::python::list l;
-      for (int i = 2; i < boost::python::len(args); ++i)
-        l.append(args[i]);
-      return pys.call(boost::python::extract<boost::python::str>(args[1]), boost::python::tuple(l), kwargs);
-    }
-
-    static boost::python::object pyobjectParamShrinkerAsync(boost::python::tuple args, boost::python::dict kwargs) {
-      PyQiObject& pys = boost::python::extract<PyQiObject&>(args[0]);
-      boost::python::list l;
-      for (int i = 2; i < boost::python::len(args); ++i)
-        l.append(args[i]);
-      kwargs.attr("_async") = true;
-      return pys.call(boost::python::extract<boost::python::str>(args[1]), boost::python::tuple(l), kwargs);
-    }
-
-
     void export_pyobject() {
       boost::python::class_<qi::py::PyQiObject>("Object", boost::python::no_init)
-          .def("call", boost::python::raw_function(&pyobjectParamShrinker, 1))
-          .def("async", boost::python::raw_function(&pyobjectParamShrinkerAsync, 1))
+          .def("call", boost::python::raw_function(&pyParamShrinker<PyQiObject>, 1))
+          .def("async", boost::python::raw_function(&pyParamShrinkerAsync<PyQiObject>, 1))
           //TODO: .def("post")
           //TODO: .def("setProperty")
           //TODO: .def("property")

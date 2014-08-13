@@ -29,6 +29,8 @@ def test_loggingLevel():
     logger.error("log error", 1)
     logger.warning("log warning", 1)
     logger.info("log info", 1)
+    # reset log level for other tests
+    qi.logging.setLevel(qi.logging.INFO)
 
 def test_loggingFilters():
     logger = qi.logging.Logger("test.logging")

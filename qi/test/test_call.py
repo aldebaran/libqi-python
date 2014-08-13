@@ -14,6 +14,7 @@ def setValue(p, v):
     time.sleep(0.2)
     p.setValue(v)
 
+@qi.multiThreaded()
 class FooService:
     def __init__(self):
         pass
@@ -74,13 +75,25 @@ class FooService:
     def fooStat(i):
         return i * 3
 
+    def slow(self):
+        time.sleep(.2)
+        return 18
+
 
 FooService.fooLambda = lambda self, x: x * 2
 
+@qi.multiThreaded()
+class Multi:
+    def slow(self):
+        time.sleep(0.1)
+        return 42
+
+
 def docalls(sserver, sclient):
-    m = FooService()
-    sserver.registerService("FooService", m)
+    sserver.registerService("FooService", FooService())
     s = sclient.service("FooService")
+    sserver.registerService("Multi", Multi())
+    m = sclient.service("Multi")
 
     print("simple test")
     assert s.simple() == 42
@@ -143,6 +156,21 @@ def docalls(sserver, sclient):
     print("test staticmethod")
     assert s.fooStat(4) == 4 * 3
 
+    print("test async")
+    start = time.time()
+    print("call !")
+    f1 = m.slow(_async=True)
+    print("call !")
+    f2 = m.slow(_async=True)
+    print("call !")
+    f3 = m.slow(_async=True)
+    print("done !")
+    assert f1.value() == 42
+    assert f2.value() == 42
+    assert f3.value() == 42
+    end = time.time()
+    print (end-start)
+    assert end - start < 0.15
 
 def test_calldirect():
     ses = qi.Session()
