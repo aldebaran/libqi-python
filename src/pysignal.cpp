@@ -30,12 +30,19 @@ namespace qi { namespace py {
       return qi::AnyReference::from(ret).clone();
     }
 
+    static void pysignalOnSubscribe(const PyThreadSafeObject& callable, bool subscribers) {
+      GILScopedLock _lock;
+      PY_CATCH_ERROR(callable.object()(subscribers));
+    }
+
     //use a shared_ptr to allow optional destruction of SignalBase (when not owned by us)
     class PySignal : boost::noncopyable {
     public:
-      explicit PySignal(const qi::Signature &signature = "m")
-        : _sig(new qi::SignalBase(signature))
+      explicit PySignal(const qi::Signature &signature = "m", const boost::python::object& onConnect = boost::python::object())
+        : _sig(new qi::SignalBase(signature, onConnect ? boost::bind(&pysignalOnSubscribe, PyThreadSafeObject(onConnect), _1) : qi::SignalBase::OnSubscribers()))
       {
+        if (onConnect && !PyCallable_Check(onConnect.ptr()))
+          throw std::runtime_error("onConnect callback is not callable");
       }
 
       explicit PySignal(boost::shared_ptr<qi::SignalBase> sigbase)
@@ -188,6 +195,7 @@ namespace qi { namespace py {
       //use a shared_ptr because class Signal is not copyable.
       boost::python::class_<PySignal, boost::shared_ptr<PySignal>, boost::noncopyable >("Signal", boost::python::init<>())
           .def(boost::python::init<const std::string &>())
+          .def(boost::python::init<const std::string &, const boost::python::object&>())
           .def("connect", &PySignal::connect, (boost::python::arg("callback"), boost::python::arg("_async") = false),
                "connect(callback) -> int\n"
                ":param callback: the callback that will be called when the signal is triggered\n"

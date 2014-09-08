@@ -91,6 +91,21 @@ def test_signal():
   assert sub1.done == True
   assert sub2.done == False
 
+lastSubs = False
+
+def test_subscribe():
+  global lastSubs
+  lastSubs = False
+  def onSubscriber(subs):
+    global lastSubs
+    lastSubs = subs
+  sig = qi.Signal('m', onSubscriber)
+  assert lastSubs == False
+  connlink = sig.connect(lambda x: None)
+  assert lastSubs == True
+  assert sig.disconnect(connlink)
+  assert lastSubs == False
+
 def main():
   test_signal()
 
