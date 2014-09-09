@@ -2,5 +2,7 @@
   <qibuild name="libqi-python">
     <depends runtime="true" buildtime="true" names="libqi" />
   </qibuild>
-  <qipython name="libqi-python" />
+  <qipython name="libqi-python">
+    <package name="qi" />
+  </qipython>
 </project>
