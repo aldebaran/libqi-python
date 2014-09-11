@@ -11,6 +11,9 @@
 Provided features are very close to C++, Python style.
 """
 
+import ctypes
+import os
+import sys
 
 def load_lib_qipyessaging():
     """ Load _qipyessaging.so and its dependencies.
@@ -18,9 +21,6 @@ def load_lib_qipyessaging():
     This makes _qipyessaging usable from a relocatable
     SDK without having to set LD_LIBRARY_PATH
     """
-    import ctypes
-    import os
-    import sys
     deps = [
             "libboost_python.so",
             "libboost_system.so",
@@ -48,11 +48,18 @@ def load_lib_qipyessaging():
         except Exception:
             pass
 
+def set_dll_directory():
+    this_dir = os.path.dirname(__file__)
+    sdk_dir = os.path.join(this_dir, "..", "..")
+    sdk_dir = os.path.abspath(sdk_dir)
+    bin_dir = os.path.join(sdk_dir, "bin")
+    ctypes.windll.kernel32.SetDllDirectoryA(bin_dir)
 
 def _on_import_module():
-    import sys
     if sys.platform.startswith("linux"):
         load_lib_qipyessaging()
+    if sys.platform.startswith("win"):
+        set_dll_directory()
 
 
 #######
