@@ -8,6 +8,9 @@
 #include <boost/python.hpp>
 #include <qipython/error.hpp>
 #include <qipython/pythreadsafeobject.hpp>
+#include "pystrand.hpp"
+
+qiLogCategory("qipy.future");
 
 namespace qi {
   namespace py {
@@ -65,9 +68,18 @@ namespace qi {
     }
 
     void PyFuture::addCallback(const boost::python::object &callable) {
-      PyThreadSafeObject obj(callable);
       if (!PyCallable_Check(callable.ptr()))
         throw std::runtime_error("Not a callable");
+
+      PyThreadSafeObject obj(callable);
+
+      qi::Strand* strand = extractStrand(callable);
+      if (strand)
+      {
+        GILScopedUnlock _unlock;
+        connectWithStrand(strand, boost::bind<void>(&pyFutureCb, _1, obj));
+      }
+      else
       {
         GILScopedUnlock _unlock;
         connect(boost::bind<void>(&pyFutureCb, _1, obj));

@@ -9,6 +9,7 @@
 #include <boost/python.hpp>
 #include <qi/property.hpp>
 #include <qi/anyobject.hpp>
+#include "pystrand.hpp"
 
 namespace qi { namespace py {
 
@@ -43,13 +44,23 @@ namespace qi { namespace py {
 
       boost::python::object addCallback(const boost::python::object& callable, bool _async = false) {
         qi::uint64_t link;
-        PyThreadSafeObject obj(callable);
         if (!PyCallable_Check(callable.ptr()))
           throw std::runtime_error("Not a callable");
+
+        PyThreadSafeObject obj(callable);
+
+        qi::Strand* strand = extractStrand(callable);
+        if (strand)
+        {
+          GILScopedUnlock _unlock;
+          link = connect(SignalSubscriber(qi::AnyFunction::from(boost::bind<void>(&pyPropertyCb, _1, obj)), strand));
+        }
+        else
         {
           GILScopedUnlock _unlock;
           link = connect(boost::bind<void>(&pyPropertyCb, _1, obj));
         }
+
         if (_async)
         {
           return boost::python::object(toPyFuture(qi::Future<qi::uint64_t>(link)));
@@ -114,7 +125,15 @@ namespace qi { namespace py {
         PyThreadSafeObject obj(callable);
         if (!PyCallable_Check(callable.ptr()))
           throw std::runtime_error("Not a callable");
+
         qi::Future<SignalLink> f;
+        qi::Strand* strand = extractStrand(callable);
+        if (strand)
+        {
+          GILScopedUnlock _unlock;
+          f = _obj.connect(_sigid, SignalSubscriber(qi::AnyFunction::from(boost::bind<void>(&pyPropertyCb, _1, obj)), strand));
+        }
+        else
         {
           GILScopedUnlock _unlock;
           f = _obj.connect(_sigid, AnyFunction::from(boost::bind<void>(&pyPropertyCb, _1, obj)));

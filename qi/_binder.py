@@ -25,6 +25,7 @@
 import types
 import inspect
 from ._type import AnyArguments
+from _qi import Strand
 
 class bind():
     """ bind(returnType = None, paramsType = Node, methodName = None)
@@ -86,6 +87,11 @@ class singleThreaded():
             f : function to bind.
         """
         f.__qi_threading__ = "single"
+        def get_strand(self):
+            if not hasattr(self, "__qi_strand__"):
+                self.__qi_strand__ = Strand()
+            return self.__qi_strand__
+        f.qi_strand = get_strand
         return f
 
 class multiThreaded():
