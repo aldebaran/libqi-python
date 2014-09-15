@@ -222,7 +222,7 @@ namespace qi { namespace py {
         tu = inspect.attr("getargspec")(method);
       } catch(const boost::python::error_already_set& e) {
         std::string s = PyFormatError();
-        qiLogError() << "Error while registering function '" << key << "': " << s;
+        qiLogWarning() << "Skipping the registration of '" << key << "': " << s;
         return;
       }
 
