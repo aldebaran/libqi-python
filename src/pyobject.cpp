@@ -5,6 +5,7 @@
 #include <qipython/pyobject.hpp>
 #include <boost/python.hpp>
 #include <boost/python/raw_function.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <qipython/pyfuture.hpp>
 #include <qipython/pysignal.hpp>
 #include <qipython/pyproperty.hpp>
@@ -204,6 +205,10 @@ namespace qi { namespace py {
 
     void registerMethod(qi::DynamicObjectBuilder& gob, const std::string& key, boost::python::object& method, const std::string& qisig)
     {
+      if (boost::starts_with(key, "__")) {
+        qiLogVerbose() << "Not binding private method: " << key;
+        return;
+      }
       qi::MetaMethodBuilder mmb;
       mmb.setName(key);
       boost::python::object desc = method.attr("__doc__");
