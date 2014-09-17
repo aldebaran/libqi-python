@@ -5,6 +5,7 @@
 #include <qipython/pyproperty.hpp>
 #include <qipython/pythreadsafeobject.hpp>
 #include <qipython/error.hpp>
+#include <qipython/pyfuture.hpp>
 #include <boost/python.hpp>
 #include <qi/property.hpp>
 #include <qi/anyobject.hpp>
@@ -40,14 +41,47 @@ namespace qi { namespace py {
         qi::GenericProperty::setValue(obj);
       }
 
-      void addCallback(const boost::python::object &callable) {
+      boost::python::object addCallback(const boost::python::object& callable, bool _async = false) {
+        qi::uint64_t link;
         PyThreadSafeObject obj(callable);
         if (!PyCallable_Check(callable.ptr()))
           throw std::runtime_error("Not a callable");
         {
           GILScopedUnlock _unlock;
-          connect(boost::bind<void>(&pyPropertyCb, _1, obj));
+          link = connect(boost::bind<void>(&pyPropertyCb, _1, obj));
         }
+        if (_async)
+        {
+          return boost::python::object(toPyFuture(qi::Future<qi::uint64_t>(link)));
+        }
+        return boost::python::object(link);
+      }
+
+      boost::python::object disc(qi::uint64_t id, bool _async = false) {
+        bool r;
+        {
+          GILScopedUnlock _unlock;
+          r = disconnect(id);
+        }
+        if (_async)
+        {
+          return boost::python::object(toPyFuture(qi::Future<bool>(r)));
+        }
+
+        return boost::python::object(r);
+      }
+
+      boost::python::object discAll(bool _async = false) {
+        bool r;
+        {
+          GILScopedUnlock _unlock;
+          r = disconnectAll();
+        }
+        if (_async)
+        {
+          return boost::python::object(toPyFuture(qi::Future<qi::uint64_t>(r)));
+        }
+        return boost::python::object(r);
       }
     };
 
@@ -58,24 +92,43 @@ namespace qi { namespace py {
         , _sigid(signal.uid()){
       }
 
-      //TODO: support async
-      boost::python::object value() const {
-        return _obj.property(_sigid).value().to<boost::python::object>();
+      boost::python::object value(bool _async = false) const {
+        qi::Future<AnyValue> f;
+        {
+          GILScopedUnlock _unlock;
+          f = _obj.property(_sigid);
+        }
+        return toPyFutureAsync(f, _async);
       }
 
-      //TODO: support async
-      void setValue(boost::python::object obj) {
-        _obj.setProperty(_sigid, qi::AnyValue::from(obj));
+      boost::python::object setValue(boost::python::object obj, bool _async = false) {
+        qi::Future<void> f;
+        {
+          GILScopedUnlock _unlock;
+          f = _obj.setProperty(_sigid, qi::AnyValue::from(obj));
+        }
+        return toPyFutureAsync(f, _async);
       }
 
-      void addCallback(const boost::python::object &callable) {
+      boost::python::object addCallback(const boost::python::object &callable, bool _async = false) {
         PyThreadSafeObject obj(callable);
         if (!PyCallable_Check(callable.ptr()))
           throw std::runtime_error("Not a callable");
+        qi::Future<SignalLink> f;
         {
           GILScopedUnlock _unlock;
-          _obj.connect(_sigid, AnyFunction::from(boost::bind<void>(&pyPropertyCb, _1, obj)));
+          f = _obj.connect(_sigid, AnyFunction::from(boost::bind<void>(&pyPropertyCb, _1, obj)));
         }
+        return toPyFutureAsync(f, _async);
+      }
+
+      boost::python::object disc(qi::uint64_t id, bool _async = false) {
+        qi::Future<void> f;
+        {
+          GILScopedUnlock _unlock;
+          f = _obj.disconnect(id);
+        }
+        return toPyFutureAsync(f, _async);
       }
 
     private:
@@ -112,16 +165,37 @@ namespace qi { namespace py {
                "\n"
                "set the value of the property")
 
-          .def("addCallback", &PyProperty::addCallback,
-               "addCallback(cb) -> None\n"
+          .def("addCallback", &PyProperty::addCallback, (boost::python::arg("cb"), boost::python::arg("_async") = false),
+               "addCallback(cb) -> int\n"
                ":param cb: the callback to call when the property changes\n"
                "\n"
-               "add a callback to the property");
+               "add a callback to the property")
+
+          .def("connect", &PyProperty::addCallback, (boost::python::arg("cb"), boost::python::arg("_async") = false),
+               "connect(cb) -> int\n"
+               ":param cb: the callback to call when the property changes\n"
+               "\n"
+               "add a callback to the property")
+
+          .def("disconnect", &PyProperty::disc, (boost::python::arg("id"), boost::python::arg("_async") = false),
+               "disconnect(id) -> bool\n"
+               ":param id: the connection id returned by connect\n"
+               ":return: true on success\n"
+               "\n"
+               "Disconnect the callback associated to id.")
+
+          .def("disconnectAll", &PyProperty::disconnectAll, (boost::python::arg("_async") = false),
+               "disconnectAll() -> bool\n"
+               ":return: true on success\n"
+               "\n"
+               "disconnect all callback associated to the signal. This function should be used very carefully. It's extremely rare that it is needed.");
 
       boost::python::class_<PyProxyProperty>("_ProxyProperty", boost::python::no_init)
-          .def("value", &PyProxyProperty::value)
-          .def("setValue", &PyProxyProperty::setValue, (boost::python::arg("value")))
-          .def("addCallback", &PyProxyProperty::addCallback);
+          .def("value", &PyProxyProperty::value, (boost::python::arg("_async") = false))
+          .def("setValue", &PyProxyProperty::setValue, (boost::python::arg("value"), boost::python::arg("_async") = false))
+          .def("addCallback", &PyProxyProperty::addCallback, (boost::python::arg("cb"), boost::python::arg("_async") = false))
+          .def("connect", &PyProxyProperty::addCallback, (boost::python::arg("cb"), boost::python::arg("_async") = false))
+          .def("disconnect", &PyProxyProperty::disc, (boost::python::arg("id"), boost::python::arg("_async") = false));
     }
 
   }
