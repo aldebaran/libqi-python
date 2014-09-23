@@ -15,7 +15,7 @@ import ctypes
 import os
 import sys
 
-def load_lib_qipyessaging():
+def load_libqipython():
     """ Load _qipyessaging.so and its dependencies.
 
     This makes _qipyessaging usable from a relocatable
@@ -32,9 +32,6 @@ def load_lib_qipyessaging():
             "libboost_locale.so",
             "libboost_signals.so",
             "libqi.so",
-            "libqitype.so",
-            "libqimessaging.so",
-            "libqipython.so",
     ]
     if sys.version_info[0] == 2:
         deps.append("libqipython.so")
@@ -57,7 +54,7 @@ def set_dll_directory():
 
 def _on_import_module():
     if sys.platform.startswith("linux"):
-        load_lib_qipyessaging()
+        load_libqipython()
     if sys.platform.startswith("win"):
         set_dll_directory()
 

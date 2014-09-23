@@ -7,6 +7,11 @@
 #ifndef _QIPYTHON_PYFUTURE_HPP_
 #define _QIPYTHON_PYFUTURE_HPP_
 
+// We need this header because on macOS python redefine macro of string operations (isalnum, isspace...)
+// this redefintion conflict with ios definition of those function.
+// for more information take a look to python2.7/pyport.h headers under _PY_PORT_CTYPE_UTF8_ISSUE section.
+#include <locale>
+
 #include <boost/python.hpp>
 #include <qi/future.hpp>
 #include <qi/anyvalue.hpp>

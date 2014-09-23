@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 ##
 ## Author(s):
-##  - Philippe Daouadi <pdaouadi@aldebaran.com
+##  - Philippe Daouadi <pdaouadi@aldebaran.com>
 ##
 ## Copyright (C) 2013 Aldebaran Robotics
 
@@ -22,8 +22,12 @@ def test_signal():
     test_signal.gotval = 0
     def cb(val):
         test_signal.gotval += val
-    prop.addCallback(cb)
+    link = prop.connect(cb)
     prop.setValue(42)
+    time.sleep(0.05)
+    assert test_signal.gotval == 42
+    prop.disconnect(link)
+    prop.setValue(38)
     time.sleep(0.05)
     assert test_signal.gotval == 42
 
@@ -50,8 +54,14 @@ def test_remote_property():
     test_remote_property.gotval = ""
     def cb(val):
         test_remote_property.gotval += val
-    robj.prop.addCallback(cb)
-    lobj.prop.addCallback(cb)
+    rlink = robj.prop.addCallback(cb)
+    llink = lobj.prop.addCallback(cb)
+    lobj.prop.setValue("ha")
+    robj.prop.setValue("ha")
+    time.sleep(0.05)
+    assert test_remote_property.gotval == "hahahaha"
+    robj.prop.disconnect(rlink)
+    lobj.prop.disconnect(llink)
     lobj.prop.setValue("ha")
     robj.prop.setValue("ha")
     time.sleep(0.05)
