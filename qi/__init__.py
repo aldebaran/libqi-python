@@ -50,7 +50,8 @@ def set_dll_directory():
     sdk_dir = os.path.join(this_dir, "..", "..")
     sdk_dir = os.path.abspath(sdk_dir)
     bin_dir = os.path.join(sdk_dir, "bin")
-    ctypes.windll.kernel32.SetDllDirectoryA(bin_dir)
+    if os.path.exists(bin_dir):
+        ctypes.windll.kernel32.SetDllDirectoryA(bin_dir)
 
 def _on_import_module():
     if sys.platform.startswith("linux"):
