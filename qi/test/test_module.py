@@ -11,4 +11,9 @@ def test_module():
     mouse = mod.createObject("Mouse")
     assert mouse.squeak() == 18
 
+    session = qi.Session()
+    session.listenStandalone('tcp://localhost:0')
+    cat = mod.createObject("Cat", session)
+    assert cat.meow(3) == 'meow'
+
     assert mod.call("lol") == 3
