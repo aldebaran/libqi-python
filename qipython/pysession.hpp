@@ -12,10 +12,12 @@
 #include <qipython/api.hpp>
 
 namespace qi {
-  namespace py {
-    QIPYTHON_API boost::python::object makePySession(const SessionPtr& ses);
-    void export_pysession();
-  }
+namespace py {
+
+QIPYTHON_API boost::python::object makePySession(const SessionPtr& sess);
+void export_pysession();
+
+}
 }
 
 #endif  // _QIPYTHON_PYSESSION_HPP_
