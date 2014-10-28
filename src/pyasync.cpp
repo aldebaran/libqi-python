@@ -13,6 +13,7 @@
 #include <qipython/pyfuture.hpp>
 #include <qipython/pyobject.hpp>
 #include <qipython/pythreadsafeobject.hpp>
+#include "pystrand.hpp"
 
 qiLogCategory("py.async");
 
@@ -29,6 +30,7 @@ namespace qi { namespace py {
         if (!PyCallable_Check(callable.ptr()))
           throw std::runtime_error("Not a callable");
         qi::PeriodicTask::setCallback(boost::bind<void>(pyPeriodicCb, PyThreadSafeObject(callable)));
+        qi::PeriodicTask::setStrand(extractStrand(callable));
       }
 
       void stop() {
@@ -76,7 +78,10 @@ namespace qi { namespace py {
       // AnyValue is easier to use
       boost::function<AnyValue()> f = boost::bind(&pyAsync, PyThreadSafeObject(args));
 
-      qi::Future<AnyValue> fut = qi::getEventLoop()->async(f, delay);
+      ExecutionContext* ec = extractStrand(callable);
+      if (!ec)
+        ec = qi::getEventLoop();
+      qi::Future<AnyValue> fut = ec->async(f, qi::MicroSeconds(delay));
 
       return boost::python::object(qi::py::toPyFuture(fut));
     }

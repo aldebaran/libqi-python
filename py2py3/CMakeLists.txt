@@ -40,6 +40,8 @@ set(_sources
   ../src/pytranslator.cpp
   ../src/error.cpp
   ../src/trace.cpp
+  ../src/pystrand.hpp
+  ../src/pystrand.cpp
 )
 
 qi_install_header(${_headers} SUBFOLDER qipython)

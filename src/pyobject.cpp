@@ -14,6 +14,7 @@
 #include <qi/type/dynamicobjectbuilder.hpp>
 #include <qi/type/objecttypebuilder.hpp> //for TYPE_TEMPLATE(Future)
 #include <qi/jsoncodec.hpp>
+#include <qi/strand.hpp>
 #include <qipython/gil.hpp>
 
 #include "pyobject_p.hpp"

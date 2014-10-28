@@ -72,9 +72,10 @@ namespace qi {
                          "sdkPrefix() -> string\n"
                          ":return: The SDK prefix path. It is always a complete, native path.\n");
 
-      boost::python::def("findBin", &qi::path::findBin,
+      boost::python::def("findBin", &qi::path::findBin, (boost::python::arg("name"), boost::python::arg("searchInPath") = false),
                          "findBin(name) -> string\n"
                          ":param name: string. The full name of the binary, or just the name.\n"
+                         ":param searchInPath: boolean. Search in $PATH if it haven't been found in sdk dirs. Optionnal.\n"
                          ":return: the complete, native path to the file found. An empty string otherwise.\n"
                          "\n"
                          "Look for a binary in the system.");

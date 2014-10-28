@@ -14,6 +14,7 @@
 #include <qipython/pylog.hpp>
 #include <qipython/pypath.hpp>
 #include <qipython/pytranslator.hpp>
+#include "pystrand.hpp"
 
 namespace qi {
   namespace py {
@@ -31,6 +32,7 @@ namespace qi {
       qi::py::export_pylog();
       qi::py::export_pypath();
       qi::py::export_pytranslator();
+      qi::py::export_pystrand();
     }
   }
 }

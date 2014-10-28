@@ -110,9 +110,10 @@ def _stopApplication():
 #application is a singleton, it should live till the end of the program
 #because it own eventloops
 def Application(args=None, raw=False, autoExit=True, url=None):
+    import sys
     global _app
     if args is None:
-        args = [ "" ]
+        args = sys.argv
     if url is None:
         url = "tcp://127.0.0.1:9559"
     if _app is None:

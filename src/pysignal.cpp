@@ -12,6 +12,7 @@
 #include <qipython/pyfuture.hpp>
 #include <qipython/pyobject.hpp>
 #include <qipython/pythreadsafeobject.hpp>
+#include "pystrand.hpp"
 
 qiLogCategory("py.signal");
 
@@ -62,7 +63,17 @@ namespace qi { namespace py {
 
         if (!PyCallable_Check(callable.ptr()))
           throw std::runtime_error("Not a callable");
+
+        qi::Strand* strand = extractStrand(callable);
+
         qi::uint64_t r;
+        if (strand)
+        {
+          GILScopedUnlock _unlock;
+          //no need to store a ptr on ourself. (this exist if the callback is triggered)
+          r = _sig->connect(SignalSubscriber(qi::AnyFunction::fromDynamicFunction(boost::bind(pysignalCb, _1, obj)), strand));
+        }
+        else
         {
           GILScopedUnlock _unlock;
           //no need to store a ptr on ourself. (this exist if the callback is triggered)
@@ -129,7 +140,16 @@ namespace qi { namespace py {
         PyThreadSafeObject obj(callable);
         if (!PyCallable_Check(callable.ptr()))
           throw std::runtime_error("Not a callable");
+
         qi::Future<SignalLink> f;
+        qi::Strand* strand = extractStrand(callable);
+        if (strand)
+        {
+          GILScopedUnlock _unlock;
+          //no need to store a ptr on ourself. (this exist if the callback is triggered)
+          f = _obj.connect(_sigid, SignalSubscriber(qi::AnyFunction::fromDynamicFunction(boost::bind(pysignalCb, _1, obj)), strand));
+        }
+        else
         {
           GILScopedUnlock _unlock;
           //no need to store a ptr on ourself. (this exist if the callback is triggered)
