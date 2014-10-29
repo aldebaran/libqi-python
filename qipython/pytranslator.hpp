@@ -17,6 +17,7 @@ namespace qi {
 
         std::string translate1(const std::string &msg);
         std::string translate2(const std::string &msg, const std::string &domain);
+        std::string translate3(const std::string &msg, const std::string &domain, const std::string &locale);
     };
 
     void export_pytranslator();

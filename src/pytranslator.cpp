@@ -23,6 +23,11 @@ namespace qi {
      return qi::Translator::translate(msg, domain);
    }
 
+   std::string PyTranslator::translate3(const std::string &msg, const std::string &domain, const std::string &locale)
+   {
+     return qi::Translator::translate(msg, domain, locale);
+   }
+
    void export_pytranslator()
    {
      // If we don't tell boost it's non-copyable it will try to register a
@@ -33,8 +38,12 @@ namespace qi {
             "Translate a message from a domain to a locale")
        .def("translate", &PyTranslator::translate2,
             "Translate a message from a domain to a locale")
+       .def("translate", &PyTranslator::translate3,
+            "Translate a message from a domain to a locale")
        .def("translate", &PyTranslator::translate,
             "Translate a message from a domain to a locale")
+       .def("translate", &PyTranslator::translateContext,
+            "Translate a message with a context")
        .def("setCurrentLocale", &PyTranslator::setCurrentLocale,
             "Set the locale.")
        .def("setDefaultDomain", &PyTranslator::setDefaultDomain,
