@@ -82,9 +82,9 @@ boost::python::object extractFromCallable(const boost::python::object& obj)
 qi::Strand* extractStrand(const boost::python::object& obj)
 {
   boost::python::object self(extractFromCallable(obj));
-  if (!self.is_none() && hasattr(self, "qi_strand"))
+  if (!self.is_none() && hasattr(self, "__qi_get_strand__"))
   {
-    boost::python::object ostrand(self.attr("qi_strand")());
+    boost::python::object ostrand(self.attr("__qi_get_strand__")());
     boost::python::extract<qi::Strand&> estrand(ostrand);
     if (estrand.check())
       return &estrand();
