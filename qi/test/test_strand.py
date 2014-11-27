@@ -153,5 +153,8 @@ if __name__ == '__main__':
     test_future_strand()
     test_future_partials_strand()
     test_signal_strand()
+    test_remote_signal_strand()
+    test_property_strand()
+    test_remote_property_strand()
     test_async_strand()
     test_all_strand()

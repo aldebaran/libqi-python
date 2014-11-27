@@ -30,7 +30,11 @@ namespace qi { namespace py {
       {
       }
 
-      ~PyProperty() {
+      ~PyProperty()
+      {
+        //the dtor can lock waiting for callback ends
+        GILScopedUnlock _unlock;
+        this->disconnectAll();
       }
 
       boost::python::object val() const {
@@ -100,7 +104,15 @@ namespace qi { namespace py {
     public:
       PyProxyProperty(qi::AnyObject obj, const qi::MetaProperty &signal)
         : _obj(obj)
-        , _sigid(signal.uid()){
+        , _sigid(signal.uid())
+      {
+      }
+
+      ~PyProxyProperty()
+      {
+        //the dtor can lock waiting for callback ends
+        GILScopedUnlock _unlock;
+        _obj.reset();
       }
 
       boost::python::object value(bool _async = false) const {
