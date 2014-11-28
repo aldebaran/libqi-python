@@ -61,7 +61,7 @@ qi_stage_lib(qipython${pyver})
 qi_install_python(${CMAKE_CURRENT_SOURCE_DIR}/../qi VERSION ${pyver} KEEP_RELATIVE_PATHS)
 
 if("${pyver}" STREQUAL "")
-  qi_create_python_ext(_qi SHARED ../src/boostpymain.cpp)
+  qi_create_python_ext(_qi ../src/boostpymain.cpp)
   qi_install_python(${CMAKE_CURRENT_SOURCE_DIR}/../qi KEEP_RELATIVE_PATHS)
   qi_use_lib(_qi qipython)
   # Hack for embedded python interpreter to find the sources of
