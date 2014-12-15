@@ -17,3 +17,12 @@ def test_module():
     assert cat.meow(3) == 'meow'
 
     assert mod.call("lol") == 3
+
+def test_module_service():
+    session = qi.Session()
+    session.listenStandalone("tcp://localhost:0")
+
+    session.loadService("moduletest.Cat", "", "truc")
+
+    cat = session.service("Cat")
+    assert cat.meow(3) == 'meow'
