@@ -18,6 +18,12 @@ def test_module():
 
     assert mod.call("lol") == 3
 
+def test_module_undef():
+    mod = qi.module("moduletest")
+
+    with pytest.raises(RuntimeError):
+        mod.createObject("LOL")
+
 def test_module_service():
     session = qi.Session()
     session.listenStandalone("tcp://localhost:0")

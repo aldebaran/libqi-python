@@ -53,7 +53,7 @@ namespace qi {
       int           len        = boost::python::len(pyargs);
       PyModule      mod = boost::python::extract<PyModule>(pyargs[0]);
       std::string   objectName = boost::python::extract<std::string>(pyargs[1]);
-      qi::AnyObject object;
+      qi::AnyValue object;
       qi::AnyReference ret;
       qi::AnyReferenceVector args;
       for (int i = 2; i < len; ++i)
@@ -64,7 +64,7 @@ namespace qi {
         ret = mod._mod.metaCall(objectName, args).value();
         try
         {
-          object = ret.to<qi::AnyObject>();
+          object = ret.to<qi::AnyValue>();
           ret.destroy();
         }
         catch(std::exception& e)
@@ -75,9 +75,9 @@ namespace qi {
         }
       }
 
-      if(!object)
+      if(!object.isValid())
         throw PyCreateException(objectName);
-      return makePyQiObject(object, objectName);
+      return object.to<boost::python::object>();
     }
 
 
