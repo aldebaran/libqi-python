@@ -16,6 +16,8 @@ def test_module():
     cat = mod.createObject("Cat", session)
     assert cat.meow(3) == 'meow'
 
+    assert cat.cloneMe().meow(3) == 'meow'
+
     assert mod.call("lol") == 3
 
 def test_module_undef():

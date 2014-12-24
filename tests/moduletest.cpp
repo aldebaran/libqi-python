@@ -31,12 +31,17 @@ class MODULE_TEST_API Cat
     std::string meow(int volume);
     bool eat(const Mouse& m);
 
+    boost::shared_ptr<Cat> cloneMe()
+    {
+      return boost::make_shared<Cat>();
+    }
+
     qi::Property<float> hunger;
     qi::Property<float> boredom;
     qi::Property<float> cuteness;
 };
 
-QI_REGISTER_OBJECT(Cat, meow, hunger, boredom, cuteness);
+QI_REGISTER_OBJECT(Cat, meow, cloneMe, hunger, boredom, cuteness);
 
 Cat::Cat()
 {
@@ -77,7 +82,7 @@ void registerObjs(qi::ModuleBuilder* mb)
   mb->advertiseFactory<Cat>("Cat");
   mb->advertiseFactory<Cat, std::string>("Cat");
   mb->advertiseFactory<Cat, const qi::SessionPtr&>("Cat");
-  mb->advertiseMethod("lol", lol);
+  mb->advertiseMethod("lol", &lol);
 }
 
 QI_REGISTER_MODULE("moduletest", &registerObjs);
