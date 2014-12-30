@@ -21,6 +21,8 @@ public:
   {
   }
 
+  ~PyQiFunctor();
+
   boost::python::object operator()(boost::python::tuple pyargs,
                                    boost::python::dict pykwargs);
 
@@ -39,6 +41,8 @@ public:
   PyQiObject(const qi::AnyObject& obj) : _object(obj)
   {
   }
+
+  ~PyQiObject();
 
   boost::python::object call(boost::python::str pyname,
                              boost::python::tuple pyargs,
