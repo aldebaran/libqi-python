@@ -31,6 +31,7 @@ namespace
 {
   void PyObjectDeleter(PyObject* obj)
   {
+    qi::py::GILScopedLock _lock;
     Py_DECREF(obj);
   }
 }
