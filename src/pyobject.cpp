@@ -23,6 +23,18 @@ qiLogCategory("qipy.object");
 
 namespace qi { namespace py {
 
+    PyQiFunctor::~PyQiFunctor()
+    {
+        qi::py::GILScopedUnlock _lock;
+        _object.reset();
+    }
+
+    PyQiObject::~PyQiObject()
+    {
+        qi::py::GILScopedUnlock _lock;
+        _object.reset();
+    }
+
     boost::python::object PyQiFunctor::operator()(boost::python::tuple pyargs, boost::python::dict pykwargs) {
       qi::AnyValue val = qi::AnyValue::from(pyargs);
       bool async = boost::python::extract<bool>(pykwargs.get("_async", false));
