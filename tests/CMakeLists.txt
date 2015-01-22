@@ -6,3 +6,4 @@ find_package(qimodule)
 qi_sanitize_compile_flags(HIDDEN_SYMBOLS)
 
 qi_create_module(moduletest api.hpp moduletest.cpp SHARED DEPENDS QI NO_INSTALL)
+install(TARGETS moduletest DESTINATION lib COMPONENT test)

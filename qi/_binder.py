@@ -91,7 +91,7 @@ class singleThreaded():
             if not hasattr(self, "__qi_strand__"):
                 self.__qi_strand__ = Strand()
             return self.__qi_strand__
-        f.qi_strand = get_strand
+        f.__qi_get_strand__ = get_strand
         return f
 
 class multiThreaded():
