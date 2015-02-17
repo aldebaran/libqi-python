@@ -86,6 +86,11 @@ namespace qi {
       }
     }
 
+    void PyFuture::cancel() {
+      GILScopedUnlock _unlock;
+      qi::Future<qi::AnyValue>::cancel();
+    }
+
     PyPromise::PyPromise()
     {
     }

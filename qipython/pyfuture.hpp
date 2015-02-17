@@ -39,6 +39,7 @@ namespace qi {
       FutureState wait(int msecs) const;
       bool        hasError(int msecs) const;
       bool        hasValue(int msecs) const;
+      void        cancel();
     };
 
 
