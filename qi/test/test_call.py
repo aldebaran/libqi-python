@@ -266,6 +266,16 @@ def test_badbind2():
         ses.close()
         sd.close()
 
+def test_cancelcall():
+    try:
+        s = qi.Session()
+        s.listenStandalone('tcp://localhost:9559')
+        f = s.waitForService("my", _async = True)
+        f.cancel()
+        f.wait()
+    finally:
+        s.close()
+
 def main():
     test_calldirect()
     test_callsd()
