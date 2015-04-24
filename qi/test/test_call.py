@@ -269,7 +269,7 @@ def test_badbind2():
 def test_cancelcall():
     try:
         s = qi.Session()
-        s.listenStandalone('tcp://localhost:9559')
+        s.listenStandalone('tcp://127.0.0.1:0')
         f = s.waitForService("my", _async = True)
         f.cancel()
         f.wait()
