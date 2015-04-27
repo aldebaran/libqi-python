@@ -270,6 +270,12 @@ def test_future_init():
     fut = Future(30)
     assert fut.value() == 30
 
+def test_future_unwrap():
+    prom = Promise()
+    future = prom.future().unwrap()
+    prom.setValue(Future(42))
+
+    assert future.value() == 42
 
 def main():
     test_many_futures_create()

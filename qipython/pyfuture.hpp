@@ -37,6 +37,7 @@ namespace qi {
       boost::python::object value(int msecs = qi::FutureTimeout_Infinite) const;
       std::string error(int msecs = qi::FutureTimeout_Infinite) const;
       void addCallback(const boost::python::object &callable);
+      boost::python::object unwrap();
       FutureState wait(int msecs) const;
       bool        hasError(int msecs) const;
       bool        hasValue(int msecs) const;

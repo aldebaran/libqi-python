@@ -4,6 +4,7 @@
 */
 #include <qipython/pyfuture.hpp>
 #include <qi/future.hpp>
+#include <qi/anyobject.hpp>
 #include <qipython/gil.hpp>
 #include <boost/python.hpp>
 #include <qipython/error.hpp>
@@ -20,6 +21,31 @@ namespace qi {
       //reconstruct a pyfuture from the c++ future (the c++ one is always valid here)
       //both pypromise and pyfuture could have disappeared here.
       PY_CATCH_ERROR(callable.object()(PyFuture(fut)));
+    }
+
+    static void pyFutureUnwrap(const qi::Future<qi::AnyValue>& fut,
+        qi::Promise<AnyValue> promise)
+    {
+      if (fut.isCanceled())
+        promise.setCanceled();
+      else if (fut.hasError())
+        promise.setError(fut.error());
+
+      AnyReference ref = fut.value().asReference();
+      while (ref.kind() == qi::TypeKind_Dynamic)
+        ref = ref.content();
+      // handleFuture() below does a destroy() on the ref. remove this clone() when we have c++11 and we use anyvalue
+      // everywhere
+      ref = ref.clone();
+      if (!qi::detail::handleFuture(ref, promise))
+      {
+        ref.destroy();
+        std::ostringstream ss;
+        ss << "Unwrapping something that is not a future: "
+          << ref.type()->infoString();
+        qiLogError() << ss.str();
+        promise.setError(ss.str());
+      }
     }
 
     static void pyFutureCbProm(const PyThreadSafeObject &callable, PyPromise *pp) {
@@ -92,6 +118,13 @@ namespace qi {
     {
       GILScopedUnlock _unlock;
       qi::Future<qi::AnyValue>::cancel();
+    }
+
+    boost::python::object PyFuture::unwrap()
+    {
+      qi::Promise<qi::AnyValue> promise(&qi::PromiseNoop<qi::AnyValue>);
+      this->connect(boost::bind(pyFutureUnwrap, _1, promise));
+      return boost::python::object(PyFuture(promise.future()));
     }
 
     PyPromise::PyPromise()
@@ -226,7 +259,13 @@ namespace qi {
                "\n"
                "Add a callback that will be called when the future becomes ready.\n"
                "The callback will be called even if the future is already ready.\n"
-               "The first argument of the callback is the future itself.");
+               "The first argument of the callback is the future itself.")
+
+          .def("unwrap", &PyFuture::unwrap,
+               "unwrap() -> Future\n"
+               "\n"
+               "If this is a Future of a Future of X, return a Future of X. The state of both futures is forwarded"
+               " and cancel requests are forwarded to the appropriate future");
     }
   }
 }
