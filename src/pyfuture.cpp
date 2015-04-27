@@ -22,7 +22,6 @@ namespace qi {
       PY_CATCH_ERROR(callable.object()(PyFuture(fut)));
     }
 
-    class PyPromise;
     static void pyFutureCbProm(const PyThreadSafeObject &callable, PyPromise *pp) {
       GILScopedLock _lock;
       PY_CATCH_ERROR(callable.object()(pp));
@@ -32,6 +31,9 @@ namespace qi {
     PyFuture::PyFuture()
     {}
 
+    PyFuture::PyFuture(const boost::python::object& obj)
+      : qi::Future<qi::AnyValue>(qi::AnyValue::from(obj))
+    {}
 
     PyFuture::PyFuture(const qi::Future<qi::AnyValue>& fut)
       : qi::Future<qi::AnyValue>(fut)
@@ -86,7 +88,8 @@ namespace qi {
       }
     }
 
-    void PyFuture::cancel() {
+    void PyFuture::cancel()
+    {
       GILScopedUnlock _unlock;
       qi::Future<qi::AnyValue>::cancel();
     }
@@ -155,7 +158,9 @@ namespace qi {
                "isCancelRequested() -> bool\n"
                "Return true if the future associated with the promise asked for cancelation");
 
-      boost::python::class_<PyFuture>("Future", boost::python::no_init)
+      boost::python::class_<PyFuture>("Future")
+          .def(boost::python::init<boost::python::object>("Initialize the future in the FinishedWithValue state"))
+
           .def("value", &PyFuture::value, (boost::python::args("timeout") = qi::FutureTimeout_Infinite),
                "value(timeout) -> value\n"
                ":param timeout: a time in milliseconds. Optional.\n"

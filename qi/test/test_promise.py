@@ -9,7 +9,7 @@
 import time
 import threading
 
-from qi import Promise, PromiseNoop
+from qi import Promise, PromiseNoop, Future
 
 def waiterSetValue(promise, waiter):
     #time.sleep(t)
@@ -265,6 +265,10 @@ def test_many_callback_threaded():
         if thr_list[i].isAlive():
             print("IT IS ALIIIIVE: " + str(i))
     print("finish")
+
+def test_future_init():
+    fut = Future(30)
+    assert fut.value() == 30
 
 
 def main():
