@@ -23,6 +23,19 @@ namespace qi {
       PY_CATCH_ERROR(callable.object()(PyFuture(fut)));
     }
 
+    qi::AnyValue pyFutureThen(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable) {
+      GILScopedLock _lock;
+      boost::python::object ret;
+      try {
+        ret = callable.object()(PyFuture(fut));
+      }
+      catch (boost::python::error_already_set& e) {
+        std::string s = PyFormatError();
+        throw std::runtime_error(s);
+      }
+      return qi::AnyValue::from(ret);
+    }
+
     static void pyFutureUnwrap(const qi::Future<qi::AnyValue>& fut,
         qi::Promise<AnyValue> promise)
     {
@@ -118,6 +131,31 @@ namespace qi {
     {
       GILScopedUnlock _unlock;
       qi::Future<qi::AnyValue>::cancel();
+    }
+
+    boost::python::object PyFuture::pyThen(
+        const boost::python::object& callable)
+    {
+      if (!PyCallable_Check(callable.ptr()))
+        throw std::runtime_error("Not a callable");
+
+      PyThreadSafeObject obj(callable);
+
+      qi::Future<AnyValue> fut;
+      qi::Strand* strand = extractStrand(callable);
+      if (strand)
+      {
+        GILScopedUnlock _unlock;
+        fut = this->thenR<qi::AnyValue>(
+            strand->schedulerFor<qi::AnyValue(const qi::Future<qi::AnyValue>&)>(&pyFutureThen, _1, obj));
+      }
+      else
+      {
+        GILScopedUnlock _unlock;
+        fut = this->thenR<qi::AnyValue>(
+              boost::bind(&pyFutureThen, _1, obj));
+      }
+      return boost::python::object(PyFuture(fut));
     }
 
     boost::python::object PyFuture::unwrap()
@@ -256,6 +294,15 @@ namespace qi {
           .def("addCallback", &PyFuture::addCallback,
                "addCallback(cb) -> None\n"
                ":param cb: a python callable, could be a method or a function.\n"
+               "\n"
+               "Add a callback that will be called when the future becomes ready.\n"
+               "The callback will be called even if the future is already ready.\n"
+               "The first argument of the callback is the future itself.")
+
+          .def("then", &PyFuture::pyThen,
+               "then(cb) -> None\n"
+               ":param cb: a python callable, could be a method or a function.\n"
+               ":return: a future that will contain the return value of the callback.\n"
                "\n"
                "Add a callback that will be called when the future becomes ready.\n"
                "The callback will be called even if the future is already ready.\n"

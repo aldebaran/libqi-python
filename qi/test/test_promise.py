@@ -173,6 +173,35 @@ def test_future_callback():
     assert not f.isCanceled()
     assert f.isFinished()
 
+def test_future_then():
+
+    def callback(f):
+        assert f.isRunning() is False
+        assert f.value() == 1337
+        return 4242
+
+    p = Promise()
+    f = p.future()
+    f2 = f.then(callback)
+    p.setValue(1337)
+    f2.wait(1000)
+    assert f2.isFinished()
+    assert f2.value() == 4242
+
+def test_future_then_throw():
+
+    def callback(f):
+        assert f.isRunning() is False
+        assert f.value() == 1337
+        raise RuntimeError("lol")
+
+    p = Promise()
+    f = p.future()
+    f2 = f.then(callback)
+    p.setValue(1337)
+    f2.wait(1000)
+    assert f2.isFinished()
+    assert f2.error() == "RuntimeError: lol\n"
 
 called1, called2 = "", ""
 def test_future_two_callbacks():
