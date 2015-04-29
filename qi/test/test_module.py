@@ -23,7 +23,7 @@ def test_module():
 def test_module_undef():
     mod = qi.module("moduletest")
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(AttributeError):
         mod.createObject("LOL")
 
 def test_module_service():

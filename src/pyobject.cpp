@@ -51,7 +51,7 @@ namespace qi { namespace py {
         qi::Future<qi::AnyReference> fmeta = _object.metaCall(funN, val.content().asTupleValuePtr(), async ? MetaCallType_Queued : MetaCallType_Direct);
         //because futureAdapter support AnyRef containing Future<T>  (that will be converted to a Future<T>
         // instead of Future<Future<T>>
-        fmeta.connect(boost::bind<void>(&detail::futureAdapter<qi::AnyValue>, _1, res));
+        adaptFutureUnwrap(fmeta, res);
         if (!async)
           return res.future().value().to<boost::python::object>();
       }
