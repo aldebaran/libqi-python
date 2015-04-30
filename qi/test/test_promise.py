@@ -203,6 +203,40 @@ def test_future_then_throw():
     assert f2.isFinished()
     assert f2.error() == "RuntimeError: lol\n"
 
+def test_future_andthen():
+
+    def callback(v):
+        assert v == 1337
+        return 4242
+
+    p = Promise()
+    f = p.future()
+    f2 = f.andThen(callback)
+    p.setValue(1337)
+    f2.wait(1000)
+    assert f2.isFinished()
+    assert f2.value() == 4242
+
+def test_future_andthen_error():
+
+    global called
+    called = False
+
+    def callback(v):
+        global called
+        called = True
+        assert False
+
+    p = Promise()
+    f = p.future()
+    f2 = f.andThen(callback)
+    p.setError("errlol")
+    f2.wait(1000)
+    assert f2.isFinished()
+    assert f2.error() == "errlol"
+    time.sleep(0.1)
+    assert not called
+
 called1, called2 = "", ""
 def test_future_two_callbacks():
 
