@@ -36,11 +36,11 @@ namespace qi {
       return qi::AnyValue::from(ret);
     }
 
-    qi::AnyValue pyFutureAndThen(const qi::AnyValue& fut, const PyThreadSafeObject& callable) {
+    qi::AnyValue pyFutureAndThen(const qi::AnyValue& val, const PyThreadSafeObject& callable) {
       GILScopedLock _lock;
       boost::python::object ret;
       try {
-        ret = callable.object()(fut.to<boost::python::object>());
+        ret = callable.object()(val.to<boost::python::object>());
       }
       catch (boost::python::error_already_set& e) {
         std::string s = PyFormatError();

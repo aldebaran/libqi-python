@@ -31,8 +31,7 @@ namespace qi {
       friend class PyPromise;
       friend void pyFutureCb(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable);
       friend qi::AnyValue pyFutureThen(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable);
-      friend qi::Future<qi::AnyValue> pyFutureAndThen(const qi::Future<qi::AnyValue>& fut,
-          const PyThreadSafeObject& callable);
+      friend qi::AnyValue pyFutureAndThen(const qi::AnyValue& val, const PyThreadSafeObject& callable);
 
     public:
       PyFuture();
