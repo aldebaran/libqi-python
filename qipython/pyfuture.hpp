@@ -29,9 +29,10 @@ namespace qi {
     protected:
       PyFuture(const qi::Future<qi::AnyValue>& fut);
       friend class PyPromise;
+      friend class PyFutureBarrier;
       friend void pyFutureCb(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable);
       friend qi::AnyValue pyFutureThen(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable);
-      friend qi::AnyValue pyFutureAndThen(const qi::AnyValue& val, const PyThreadSafeObject& callable);
+      friend void onBarrierFinished(const std::vector<qi::Future<qi::AnyValue> >& futs, PyPromise prom);
 
     public:
       PyFuture();

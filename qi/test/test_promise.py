@@ -9,7 +9,7 @@
 import time
 import threading
 
-from qi import Promise, PromiseNoop, Future
+from qi import Promise, PromiseNoop, Future, futureBarrier
 
 def waiterSetValue(promise, waiter):
     #time.sleep(t)
@@ -339,6 +339,14 @@ def test_future_unwrap():
     prom.setValue(Future(42))
 
     assert future.value() == 42
+
+def test_future_barrier():
+    proms = [Promise() for x in range(10)]
+
+    f = futureBarrier([p.future() for p in proms])
+    for p in proms:
+        p.setValue(0)
+    f.wait()
 
 def main():
     test_many_futures_create()

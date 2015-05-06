@@ -7,6 +7,7 @@
 #include <qi/anyobject.hpp>
 #include <qipython/gil.hpp>
 #include <boost/python.hpp>
+#include <boost/foreach.hpp>
 #include <qipython/error.hpp>
 #include <qipython/pythreadsafeobject.hpp>
 #include "pystrand.hpp"
@@ -15,6 +16,31 @@ qiLogCategory("qipy.future");
 
 namespace qi {
   namespace py {
+
+    void onBarrierFinished(const std::vector<qi::Future<qi::AnyValue> >& futs, PyPromise prom)
+    {
+      GILScopedLock _lock;
+      boost::python::list list;
+      BOOST_FOREACH(const qi::Future<qi::AnyValue>& f, futs)
+        list += boost::python::object(PyFuture(f));
+      prom.setValue(list);
+    }
+
+    boost::python::object pyFutureBarrier(boost::python::list l)
+    {
+      std::vector<qi::Future<qi::AnyValue> > futs;
+      for (unsigned i = 0; i < boost::python::len(l); ++i)
+      {
+        boost::python::extract<PyFuture*> ex(l[i]);
+        if (!ex.check())
+          throw std::runtime_error("Not a future");
+
+        futs.push_back(*ex());
+      }
+      PyPromise prom;
+      waitForAll(futs).connect(&onBarrierFinished, _1, prom);
+      return boost::python::object(prom.future());
+    }
 
     void pyFutureCb(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable) {
       GILScopedLock _lock;
@@ -362,6 +388,15 @@ namespace qi {
                "\n"
                "If this is a Future of a Future of X, return a Future of X. The state of both futures is forwarded"
                " and cancel requests are forwarded to the appropriate future");
+
+      boost::python::def("futureBarrier", &pyFutureBarrier,
+          "futureBarrier(futureList) -> Future\n"
+          ":param futureList: A list of Futures to wait for\n"
+          ":return: A Future of list of futureList\n"
+          "\n"
+          "This function returns a future that will be set with all the futures given as argument when they are\n"
+          " all finished. This is useful to wait for a bunch of Futures at once."
+          );
     }
   }
 }
