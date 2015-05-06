@@ -68,6 +68,7 @@ from _qi import ApplicationSession as _ApplicationSession
 from _qi import ( FutureState, FutureTimeout, Future, Promise,
                   Property, Session, Signal,
                   async, PeriodicTask)
+from _qi import ( clockNow, steadyClockNow, systemClockNow )
 from _qi import ( module, listModules )
 from . import path
 from ._type import ( Void, Bool,
@@ -145,7 +146,8 @@ __all__ = ["FutureState",
            "fatal", "error", "warning", "info", "verbose",
            "getLogger", "logFatal", "logError", "logWarning", "logInfo", "logVerbose", "logDebug",  #deprecated
            "Logger", "defaultTranslator", "tr", "Translator",
-           "module", "listModules"
+           "module", "listModules",
+           "clockNow", "steadyClockNow", "systemClockNow"
 ]
 
 import atexit
