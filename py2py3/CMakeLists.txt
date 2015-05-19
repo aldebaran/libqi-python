@@ -17,6 +17,7 @@ set(_headers
   ../qipython/pylog.hpp
   ../qipython/pypath.hpp
   ../qipython/pytranslator.hpp
+  ../qipython/pyclock.hpp
   ../qipython/error.hpp
   ../qipython/gil.hpp
   ../qipython/trace.hpp
@@ -42,6 +43,7 @@ set(_sources
   ../src/trace.cpp
   ../src/pystrand.hpp
   ../src/pystrand.cpp
+  ../src/pyclock.cpp
 )
 
 qi_install_header(${_headers} SUBFOLDER qipython)
