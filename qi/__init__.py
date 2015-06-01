@@ -65,7 +65,7 @@ _on_import_module()
 
 from _qi import Application as _Application
 from _qi import ApplicationSession as _ApplicationSession
-from _qi import ( FutureState, FutureTimeout, Future, Promise,
+from _qi import ( FutureState, FutureTimeout, Future, futureBarrier, Promise,
                   Property, Session, Signal,
                   async, PeriodicTask)
 from _qi import ( clockNow, steadyClockNow, systemClockNow )
@@ -131,6 +131,7 @@ ApplicationSession = Application
 __all__ = ["FutureState",
            "FutureTimeout",
            "Future",
+           "futureBarrier",
            "Promise",
            "PromiseNoop",
            "Property",

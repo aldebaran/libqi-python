@@ -27,15 +27,22 @@ namespace qi {
 
     class PyFuture : public qi::Future<qi::AnyValue> {
     protected:
-      PyFuture();
       PyFuture(const qi::Future<qi::AnyValue>& fut);
       friend class PyPromise;
+      friend class PyFutureBarrier;
       friend void pyFutureCb(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable);
+      friend qi::AnyValue pyFutureThen(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable);
+      friend void onBarrierFinished(const std::vector<qi::Future<qi::AnyValue> >& futs, PyPromise prom);
 
     public:
+      PyFuture();
+      PyFuture(const boost::python::object& obj);
       boost::python::object value(int msecs = qi::FutureTimeout_Infinite) const;
       std::string error(int msecs = qi::FutureTimeout_Infinite) const;
       void addCallback(const boost::python::object &callable);
+      boost::python::object pyThen(const boost::python::object& callable);
+      boost::python::object pyAndThen(const boost::python::object& callable);
+      boost::python::object unwrap();
       FutureState wait(int msecs) const;
       bool        hasError(int msecs) const;
       bool        hasValue(int msecs) const;

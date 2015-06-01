@@ -275,12 +275,23 @@ namespace qi { namespace py {
 
     qi::AnyObject makeQiAnyObject(boost::python::object obj)
     {
-      //is that a qi::AnyObject?
-      boost::python::extract<PyQiObject*> isthatyoumum(obj);
+      {
+        //is that a qi::AnyObject?
+        boost::python::extract<PyQiObject*> isthatyoumum(obj);
 
-      if (isthatyoumum.check()) {
-        qiLogDebug() << "this PyObject is already a qi::AnyObject. Just returning it.";
-        return isthatyoumum()->object();
+        if (isthatyoumum.check()) {
+          qiLogDebug() << "This PyObject is already a qi::AnyObject. Just returning it.";
+          return isthatyoumum()->object();
+        }
+      }
+      {
+        //is that a qi::Future?
+        boost::python::extract<PyFuture*> isthatyoumum(obj);
+
+        if (isthatyoumum.check()) {
+          qiLogDebug() << "This PyObject is a Future. Making a qi::Object from it.";
+          return qi::AnyObject(boost::make_shared<qi::Future<qi::AnyValue> >(*isthatyoumum()));
+        }
       }
 
       qi::DynamicObjectBuilder gob;
