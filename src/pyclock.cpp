@@ -27,15 +27,15 @@ namespace py {
   void export_pyclock() {
     boost::python::def("clockNow", &pyClockNow,
         "clockNow() -> Int\n"
-        ":return: current timestamp on qi::Clock\n"
+        ":return: current timestamp on qi::Clock, as a number of nanoseconds\n"
         );
     boost::python::def("steadyClockNow", &pySteadyClockNow,
         "steadyClockNow() -> Int\n"
-        ":return: current timestamp on qi::SteadyClock\n"
+        ":return: current timestamp on qi::SteadyClock, as a number of nanoseconds\n"
         );
     boost::python::def("systemClockNow", &pySystemClockNow,
         "systemClockNow() -> Int\n"
-        ":return: current timestamp on qi::SystemClock\n"
+        ":return: current timestamp on qi::SystemClock, as a number of nanoseconds\n"
         );
   }
 }
