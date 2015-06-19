@@ -91,11 +91,11 @@ namespace qi {
       ref = ref.clone();
       if (!qi::detail::handleFuture(ref, promise))
       {
-        ref.destroy();
         std::ostringstream ss;
-        ss << "Unwrapping something that is not a future: "
+        ss << "Unwrapping something that is not a nested future: "
           << ref.type()->infoString();
-        qiLogError() << ss.str();
+        ref.destroy();
+        qiLogWarning() << ss.str();
         promise.setError(ss.str());
       }
     }

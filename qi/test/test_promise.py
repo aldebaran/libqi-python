@@ -340,6 +340,13 @@ def test_future_unwrap():
 
     assert future.value() == 42
 
+def test_future_unwrap_notfuture():
+    prom = Promise()
+    future = prom.future().unwrap()
+    prom.setValue(42)
+
+    assert future.hasError()
+
 def test_future_barrier():
     proms = [Promise() for x in range(10)]
 
