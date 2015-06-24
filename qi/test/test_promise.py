@@ -218,7 +218,6 @@ def test_future_andthen():
     assert f2.value() == 4242
 
 def test_future_andthen_error():
-
     global called
     called = False
 
@@ -234,6 +233,27 @@ def test_future_andthen_error():
     f2.wait(1000)
     assert f2.isFinished()
     assert f2.error() == "errlol"
+    time.sleep(0.1)
+    assert not called
+
+def test_future_andthen_cancel():
+    global called
+    called = False
+
+    def callback(v):
+        global called
+        called = True
+        assert False
+
+    p = Promise(PromiseNoop)
+    f = p.future()
+    f2 = f.andThen(callback)
+    f2.cancel()
+    assert p.isCancelRequested()
+    p.setCanceled()
+    f2.wait(1000)
+    assert f2.isFinished()
+    assert f2.isCanceled()
     time.sleep(0.1)
     assert not called
 
@@ -339,6 +359,21 @@ def test_future_unwrap():
     prom.setValue(Future(42))
 
     assert future.value() == 42
+
+def test_future_unwrap_cancel():
+    prom = Promise(PromiseNoop)
+    future = prom.future().unwrap()
+    future.cancel()
+
+    assert prom.isCancelRequested()
+    nested = Promise(PromiseNoop)
+    prom.setValue(nested.future())
+    # TODO add some sync-ness to remove those time.sleep :(
+    time.sleep(0.1)
+    assert nested.isCancelRequested()
+    nested.setCanceled()
+    time.sleep(0.1)
+    assert future.isCanceled()
 
 def test_future_unwrap_notfuture():
     prom = Promise()

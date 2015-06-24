@@ -224,7 +224,9 @@ namespace qi {
 
     boost::python::object PyFuture::unwrap()
     {
-      qi::Promise<qi::AnyValue> promise(&qi::PromiseNoop<qi::AnyValue>);
+      qi::Promise<qi::AnyValue> promise(this->isCancelable()
+          ? boost::bind(this->makeCanceler())
+          : boost::function<void(qi::Promise<qi::AnyValue>&)>(qi::PromiseNoop<qi::AnyValue>));
       this->connect(boost::bind(pyFutureUnwrap, _1, promise));
       return boost::python::object(PyFuture(promise.future()));
     }
