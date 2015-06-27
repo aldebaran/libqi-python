@@ -91,11 +91,11 @@ namespace qi {
       ref = ref.clone();
       if (!qi::detail::handleFuture(ref, promise))
       {
-        ref.destroy();
         std::ostringstream ss;
-        ss << "Unwrapping something that is not a future: "
+        ss << "Unwrapping something that is not a nested future: "
           << ref.type()->infoString();
-        qiLogError() << ss.str();
+        ref.destroy();
+        qiLogWarning() << ss.str();
         promise.setError(ss.str());
       }
     }
@@ -224,7 +224,9 @@ namespace qi {
 
     boost::python::object PyFuture::unwrap()
     {
-      qi::Promise<qi::AnyValue> promise(&qi::PromiseNoop<qi::AnyValue>);
+      qi::Promise<qi::AnyValue> promise(this->isCancelable()
+          ? boost::bind(this->makeCanceler())
+          : boost::function<void(qi::Promise<qi::AnyValue>&)>(qi::PromiseNoop<qi::AnyValue>));
       this->connect(boost::bind(pyFutureUnwrap, _1, promise));
       return boost::python::object(PyFuture(promise.future()));
     }
