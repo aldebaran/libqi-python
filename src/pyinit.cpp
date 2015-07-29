@@ -8,7 +8,7 @@ namespace qi {
       PyThreadState* _mainThread = 0;
     }
 
-    void initialize()
+    void initialize(bool autoUninitialization)
     {
       if (_mainThread)
         return;
@@ -20,7 +20,8 @@ namespace qi {
       // Python API, they must take the lock by themselves.
       PyEval_ReleaseLock();
 
-      qi::Application::atExit(&uninitialize);
+      if(autoUninitialization)
+        qi::Application::atExit(&uninitialize);
     }
 
     void uninitialize()

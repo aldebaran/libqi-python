@@ -15,7 +15,7 @@ namespace qi {
     /// Initialize Python and release the lock. This method is *not*
     /// threadsafe. Initialising multiple time is safe, but this must not be
     /// called if initialisation has already been done somewhere else.
-    QIPYTHON_API void initialize();
+    QIPYTHON_API void initialize(bool autoUninitialization = true);
 
     /// Deinitialize Python. This method is automatically called when
     /// qi::Application exits.
