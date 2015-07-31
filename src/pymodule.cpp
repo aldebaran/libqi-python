@@ -58,7 +58,9 @@ namespace py
 
   void export_pyobjectfactory()
   {
-    bpy::def("module", &pyqimodule);
+    bpy::def("module", &pyqimodule,
+        "module(moduleName) -> object\n"
+        ":return: an object that represents the requested module\n");
     bpy::def("listModules", &pylistModules);
   }
 }
