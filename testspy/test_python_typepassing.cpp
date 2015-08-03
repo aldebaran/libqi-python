@@ -2,8 +2,10 @@
 #include <gtest/gtest.h>
 #include <qi/anyobject.hpp>
 #include <qi/session.hpp>
+#include <qi/jsoncodec.hpp>
 #include <qipython/gil.hpp>
 #include <qipython/error.hpp>
+#include <qipython/pysession.hpp>
 #include <boost/thread.hpp>
 
 qiLogCategory("test_typepassing");
@@ -15,33 +17,41 @@ class TypePassing : public testing::Test
 protected:
   virtual void SetUp()
   {
-    std::cout << "creating python session" << std::endl;
-    py::GILScopedLock _lock;
-    PyRun_SimpleString(
-        "sd = qi.Session()\n"
-        "sd.listenStandalone(local)\n"
-        );
+    session = qi::makeSession();
+    session->listenStandalone("tcp://127.0.0.1:0");
 
-    session.connect("tcp://127.0.0.1:5555");
+    {
+      py::GILScopedLock _lock;
+      myExec(
+          "def setSession(session):\n"
+          "    global sd\n"
+          "    sd = session\n"
+          );
+
+      boost::python::object setSession = boost::python::import("__main__").attr("setSession");
+      setSession(qi::py::makePySession(session));
+    }
   }
 
   virtual void TearDown()
   {
-    session.close();
     {
       py::GILScopedLock _lock;
-      PyRun_SimpleString(
-          "sd.close()\n"
-          "del sd\n"
-          );
+      myExec("del sd\n");
     }
-    std::cout << "torn town" << std::endl;
+    session->close();
+  }
+
+  void myExec(const std::string& str)
+  {
+    boost::python::object globals = boost::python::import("__main__").attr("__dict__");
+    boost::python::exec(str.c_str(), globals, globals);
   }
 
   void registerService()
   {
     py::GILScopedLock _lock;
-    PyRun_SimpleString(
+    myExec(
         "m = TestService()\n"
         "sd.registerService('TestService', m)\n"
         );
@@ -49,17 +59,17 @@ protected:
 
   qi::AnyObject getService()
   {
-    return session.service("TestService");
+    return session->service("TestService");
   }
 
-  qi::Session session;
+  qi::SessionPtr session;
 };
 
 TEST_F(TypePassing, Int)
 {
   {
     py::GILScopedLock _lock;
-    PyRun_SimpleString(
+    myExec(
         "class TestService:\n"
         "    def func(self):\n"
         "        return 42\n"
@@ -75,7 +85,7 @@ TEST_F(TypePassing, Long)
 {
   {
     py::GILScopedLock _lock;
-    PyRun_SimpleString(
+    myExec(
         "class TestService:\n"
         "    def func(self):\n"
         "        return 42L\n"
@@ -90,7 +100,7 @@ TEST_F(TypePassing, Bool)
 {
   {
     py::GILScopedLock _lock;
-    PyRun_SimpleString(
+    myExec(
         "class TestService:\n"
         "    def func(self):\n"
         "        return True\n"
@@ -104,7 +114,7 @@ TEST_F(TypePassing, Float)
 {
   {
     py::GILScopedLock _lock;
-    PyRun_SimpleString(
+    myExec(
         "class TestService:\n"
         "    def func(self):\n"
         "        return 2.5\n"
@@ -118,7 +128,7 @@ TEST_F(TypePassing, String)
 {
   {
     py::GILScopedLock _lock;
-    PyRun_SimpleString(
+    myExec(
         "class TestService:\n"
         "    def func(self):\n"
         "        return 'can i help you?'\n"
@@ -132,7 +142,7 @@ TEST_F(TypePassing, ByteArray)
 {
   {
     py::GILScopedLock _lock;
-    PyRun_SimpleString(
+    myExec(
         "class TestService:\n"
         "    def func(self):\n"
         "        return bytearray('can i help you?', encoding='ascii')\n"
@@ -146,7 +156,7 @@ TEST_F(TypePassing, List)
 {
   {
     py::GILScopedLock _lock;
-    PyRun_SimpleString(
+    myExec(
         "class TestService:\n"
         "    def func(self):\n"
         "        return [1, 2, 3]\n"
@@ -164,7 +174,7 @@ TEST_F(TypePassing, Dict)
 {
   {
     py::GILScopedLock _lock;
-    PyRun_SimpleString(
+    myExec(
         "class TestService:\n"
         "    def func(self):\n"
         "        return {'one' : 1, 'two' : 2, 'three' : 3}\n"
@@ -182,7 +192,7 @@ TEST_F(TypePassing, Recursive)
 {
   {
     py::GILScopedLock _lock;
-    PyRun_SimpleString(
+    myExec(
         "class TestService:\n"
         "    def func(self):\n"
         "        return {'one' : 1, 'two' : [1, 2], 'three' : {42 : 'answer'}}\n"
@@ -190,17 +200,21 @@ TEST_F(TypePassing, Recursive)
   }
   registerService();
   qi::AnyValue v = getService().call<qi::AnyValue>("func");
-  ASSERT_EQ(1, v["one"].toInt());
-  ASSERT_EQ(1, (*v["two"])[0].toInt());
-  ASSERT_EQ(2, (*v["two"])[1].toInt());
-  ASSERT_EQ("answer", (*v["three"])[42].toString());
+  std::map<std::string, qi::AnyValue> map = v.to<std::map<std::string, qi::AnyValue> >();
+  ASSERT_EQ(3, map.size());
+  ASSERT_EQ(1, map["one"].toInt());
+  ASSERT_EQ(1, (*map["two"])[0].toInt());
+  ASSERT_EQ(2, (*map["two"])[1].toInt());
+  std::map<int, std::string> map2 = (*map["three"]).to<std::map<int, std::string> >();
+  ASSERT_EQ(1, map2.size());
+  ASSERT_EQ("answer", map2[42]);
 }
 
 TEST_F(TypePassing, ReverseDict)
 {
   {
     py::GILScopedLock _lock;
-    PyRun_SimpleString(
+    myExec(
         "class TestService:\n"
         "    def func(self, dict):\n"
         "        return dict == {'one' : 1, 'two' : 2, 'three' : 3}\n"
@@ -246,15 +260,14 @@ int main(int argc, char **argv) {
       boost::python::object os(boost::python::import("os"));
       sys.attr("path").attr("insert")(0, src_dir);
       sys.attr("path").attr("insert")(0, sdk_dir);
-      PyRun_SimpleString(
-          "import qi\n"
-          "local = 'tcp://127.0.0.1:5555'\n"
-          );
+
+      boost::python::object globals = boost::python::import("__main__").attr("__dict__");
+      boost::python::exec("import qi", globals, globals);
     }
     catch(...)
     {
       std::string s = PyFormatError();
-      qiLogError() << s;
+      qiLogError() << "init error: " << s;
       return 1;
     }
   }
