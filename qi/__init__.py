@@ -15,6 +15,12 @@ import ctypes
 import os
 import sys
 
+def get_qilib_path():
+    import imp
+    fp, pathname, description = imp.find_module('_qi')
+    fp.close()
+    return pathname
+
 def load_libqipython():
     """ Load _qipyessaging.so and its dependencies.
 
@@ -45,7 +51,8 @@ def load_libqipython():
         deps.append("libqipython.so")
     else:
         deps.append("libqipython3.so")
-    this_dir = os.path.abspath(os.path.dirname(__file__))
+    qilib = get_qilib_path()
+    this_dir = os.path.abspath(os.path.dirname(qilib))
     for dep in deps:
         for relpath in relpaths:
             list_path = [this_dir] + relpath + [dep]
@@ -57,7 +64,8 @@ def load_libqipython():
                 pass
 
 def set_dll_directory():
-    this_dir = os.path.dirname(__file__)
+    qilib = get_qilib_path()
+    this_dir = os.path.dirname(qilib)
     sdk_dir = os.path.join(this_dir, "..", "..")
     sdk_dir = os.path.abspath(sdk_dir)
     bin_dir = os.path.join(sdk_dir, "bin")

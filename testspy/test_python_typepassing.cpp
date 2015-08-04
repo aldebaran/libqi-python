@@ -242,9 +242,9 @@ int main(int argc, char **argv) {
   std::string src_dir = argv[2];
 
   if (argc >= 4)
-    qi::os::setenv("PYTHONHOME", argv[3]);
+    Py_SetPythonHome(argv[3]);
 
-  Py_Initialize();
+  Py_InitializeEx(0);
   PyEval_InitThreads();
   mainstate = PyThreadState_Swap(NULL);
   PyEval_ReleaseLock();

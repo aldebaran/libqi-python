@@ -9,6 +9,8 @@ if(UNIX AND NOT APPLE)
   # from toolchain python and not system.
   # At this point it only works on linux for unknown reasons.
   set(PYTHONHOME "${PYTHON${pyver}_INCLUDE_DIRS}/../..")
+elseif(MSVC)
+  set(PYTHONHOME "${PYTHON${pyver}_INCLUDE_DIRS}/../../lib/python2.7")
 endif()
 
 if(UNIX)
