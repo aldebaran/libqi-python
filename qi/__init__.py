@@ -40,12 +40,12 @@ def load_libqipython():
             "libqi.so",
     ]
     relpaths = [
-            # in pynaoqi, this file is /qi/__init__.py and we search for /libqi.so
-            [".."],
+            # in pynaoqi, we find /_qi.so and we search for /libqi.so
+            [],
             # in deploys/packages/etc,
-            # this file is $PREFIX/lib/python2.7/site-packages/qi/__init__.py
+            # we find $PREFIX/lib/python2.7/site-packages/_qi.so
             # and we need $PREFIX/lib/libqi.so
-            ["..", "..", ".."],
+            ["..", ".."],
             ]
     if sys.version_info[0] == 2:
         deps.append("libqipython.so")
