@@ -242,7 +242,15 @@ int main(int argc, char **argv) {
   std::string src_dir = argv[2];
 
   if (argc >= 4)
+  {
+#if PY_MAJOR_VERSION >= 3
+    std::string argv3 = argv[3];
+    std::vector<wchar_t> wargv3(argv3.begin(), argv3.end());
+    Py_SetPythonHome(&wargv3[0]);
+#else
     Py_SetPythonHome(argv[3]);
+#endif
+  }
 
   Py_InitializeEx(0);
   PyEval_InitThreads();
