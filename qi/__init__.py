@@ -15,6 +15,12 @@ import ctypes
 import os
 import sys
 
+def get_qilib_path():
+    import imp
+    fp, pathname, description = imp.find_module('_qi')
+    fp.close()
+    return pathname
+
 def load_libqipython():
     """ Load _qipyessaging.so and its dependencies.
 
@@ -33,20 +39,33 @@ def load_libqipython():
             "libboost_signals.so",
             "libqi.so",
     ]
+    relpaths = [
+            # in pynaoqi, we find /_qi.so and we search for /libqi.so
+            [],
+            # in deploys/packages/etc,
+            # we find $PREFIX/lib/python2.7/site-packages/_qi.so
+            # and we need $PREFIX/lib/libqi.so
+            ["..", ".."],
+            ]
     if sys.version_info[0] == 2:
         deps.append("libqipython.so")
     else:
         deps.append("libqipython3.so")
-    this_dir = os.path.abspath(os.path.dirname(__file__))
+    qilib = get_qilib_path()
+    this_dir = os.path.abspath(os.path.dirname(qilib))
     for dep in deps:
-        full_path = os.path.join(this_dir, "..", dep)
-        try:
-            ctypes.cdll.LoadLibrary(full_path)
-        except Exception:
-            pass
+        for relpath in relpaths:
+            list_path = [this_dir] + relpath + [dep]
+            full_path = os.path.join(*list_path)
+            try:
+                ctypes.cdll.LoadLibrary(full_path)
+                break
+            except Exception:
+                pass
 
 def set_dll_directory():
-    this_dir = os.path.dirname(__file__)
+    qilib = get_qilib_path()
+    this_dir = os.path.dirname(qilib)
     sdk_dir = os.path.join(this_dir, "..", "..")
     sdk_dir = os.path.abspath(sdk_dir)
     bin_dir = os.path.join(sdk_dir, "bin")
