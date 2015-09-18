@@ -30,7 +30,7 @@ namespace qi { namespace py {
         if (!PyCallable_Check(callable.ptr()))
           throw std::runtime_error("Not a callable");
         qi::PeriodicTask::setCallback(boost::bind<void>(pyPeriodicCb, PyThreadSafeObject(callable)));
-        qi::PeriodicTask::setStrand(extractStrand(callable));
+        qi::PeriodicTask::setStrand(extractStrandFromCallable(callable));
       }
 
       void stop() {
@@ -78,7 +78,7 @@ namespace qi { namespace py {
       // AnyValue is easier to use
       boost::function<AnyValue()> f = boost::bind(&pyAsync, PyThreadSafeObject(args));
 
-      ExecutionContext* ec = extractStrand(callable);
+      ExecutionContext* ec = extractStrandFromCallable(callable);
       if (!ec)
         ec = qi::getEventLoop();
       qi::Future<AnyValue> fut = ec->async(f, qi::MicroSeconds(delay));

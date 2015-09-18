@@ -64,7 +64,7 @@ namespace qi { namespace py {
         if (!PyCallable_Check(callable.ptr()))
           throw std::runtime_error("Not a callable");
 
-        qi::Strand* strand = extractStrand(callable);
+        qi::Strand* strand = extractStrandFromCallable(callable);
 
         qi::uint64_t r;
         if (strand)
@@ -142,7 +142,7 @@ namespace qi { namespace py {
           throw std::runtime_error("Not a callable");
 
         qi::Future<SignalLink> f;
-        qi::Strand* strand = extractStrand(callable);
+        qi::Strand* strand = extractStrandFromCallable(callable);
         if (strand)
         {
           GILScopedUnlock _unlock;
