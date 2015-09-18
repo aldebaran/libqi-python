@@ -96,6 +96,24 @@ def test_property_strand():
 
     obj.end.future().value()
 
+def test_remote_call_strand():
+    server = qi.Session()
+    server.listenStandalone("tcp://localhost:0")
+    client = qi.Session()
+    client.connect(server.url())
+
+    obj = Stranded(50)
+
+    server.registerService('Serv', obj)
+
+    robj = client.service('Serv')
+    for i in range(25):
+        robj.cb(None, _async=True)
+    for i in range(25):
+        qi.async(partial(obj.cb, None))
+
+    obj.end.future().value()
+
 def test_remote_property_strand():
     server = qi.Session()
     server.listenStandalone("tcp://localhost:0")
