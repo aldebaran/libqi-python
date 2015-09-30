@@ -53,7 +53,7 @@ namespace qi { namespace py {
 
         PyThreadSafeObject obj(callable);
 
-        qi::Strand* strand = extractStrand(callable);
+        qi::Strand* strand = extractStrandFromCallable(callable);
         if (strand)
         {
           GILScopedUnlock _unlock;
@@ -139,7 +139,7 @@ namespace qi { namespace py {
           throw std::runtime_error("Not a callable");
 
         qi::Future<SignalLink> f;
-        qi::Strand* strand = extractStrand(callable);
+        qi::Strand* strand = extractStrandFromCallable(callable);
         if (strand)
         {
           GILScopedUnlock _unlock;

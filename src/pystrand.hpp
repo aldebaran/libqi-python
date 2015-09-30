@@ -11,7 +11,14 @@ class Strand;
 namespace py
 {
 
-qi::Strand* extractStrand(const boost::python::object& obj);
+/**
+ * \return the strand if the object is a functor bound to an actor, nullptr otherwise
+ */
+qi::Strand* extractStrandFromCallable(const boost::python::object& callable);
+/**
+ * \return the strand if the python object has one, nullptr otherwise
+ */
+qi::Strand* extractStrandFromObject(const boost::python::object& obj);
 
 void export_pystrand();
 
