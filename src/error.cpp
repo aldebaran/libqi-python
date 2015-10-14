@@ -16,9 +16,10 @@ std::string PyFormatError()
     }
     boost::python::handle<> hexc(exc),hval(boost::python::allow_null(val)),htb(boost::python::allow_null(tb));
     boost::python::object traceback(boost::python::import("traceback"));
-    boost::python::object format_exception_only(traceback.attr("format_exception_only"));
-    formatted_list = format_exception_only(hexc,hval);
-    formatted = boost::python::str("\n").join(formatted_list);
+    boost::python::object format_exception(traceback.attr("format_exception"));
+
+    formatted_list = format_exception(hexc,hval,htb);
+    formatted = boost::python::str("").join(formatted_list);
     return boost::python::extract<std::string>(formatted);
   }
   catch (...)
