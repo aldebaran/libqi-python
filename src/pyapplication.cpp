@@ -158,7 +158,7 @@ namespace qi {
 
       void start() {
         qi::py::GILScopedUnlock _unlock;
-        _app->start();
+        _app->startSession();
       }
 
     private:
