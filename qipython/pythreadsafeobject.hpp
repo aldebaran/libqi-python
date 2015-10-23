@@ -18,6 +18,12 @@ namespace qi {
     // because PyObject inc/dec ref should be done with the GIL held.
     class PyThreadSafeObject {
     public:
+      PyThreadSafeObject()
+      {
+        GILScopedLock _lock;
+        _obj = new boost::python::object();
+      }
+
       PyThreadSafeObject(const boost::python::object &obj)
       {
         GILScopedLock _lock;
