@@ -96,7 +96,8 @@ namespace qi {
                          "\n"
                          "Look for a configuration file in the system.");
 
-      boost::python::def("findData", &qi::path::findData,
+      boost::python::def("findData", &qi::path::findData, (boost::python::arg("application"),
+                                    boost::python::arg("file"), boost::python::arg("excludeUserWritablePath") = false),
                          "findData(application, file) -> string\n"
                          ":param application: string. The name of the application.\n"
                          ":param file: string. The name of the file to look for."
