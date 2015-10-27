@@ -21,8 +21,8 @@ namespace qi {
     {
       GILScopedLock _lock;
       boost::python::list list;
-      BOOST_FOREACH(const qi::Future<qi::AnyValue>& f, futs)
-        list += boost::python::object(PyFuture(f));
+      for (const auto& f : futs)
+        list.append(boost::python::object(PyFuture(f)));
       prom.setValue(list);
     }
 

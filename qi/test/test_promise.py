@@ -388,7 +388,7 @@ def test_future_barrier():
     f = futureBarrier([p.future() for p in proms])
     for p in proms:
         p.setValue(0)
-    f.wait()
+    f.value()
 
 def main():
     test_many_futures_create()
