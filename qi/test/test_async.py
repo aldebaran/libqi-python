@@ -71,6 +71,11 @@ def test_async_cancel():
     assert(not f.hasError())
     assert(f.isCanceled())
 
+def test_async_nested_future():
+    f = qi.async(lambda: qi.Future(42))
+    assert isinstance(f, qi.Future)
+    assert isinstance(f.value(), qi.Future)
+
 def main():
     test_async_fun()
     test_async_error()
