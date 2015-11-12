@@ -153,7 +153,7 @@ namespace qi {
 
       PyThreadSafeObject obj(callable);
 
-      qi::Strand* strand = extractStrand(callable);
+      qi::Strand* strand = extractStrandFromCallable(callable);
       if (strand)
       {
         GILScopedUnlock _unlock;
@@ -181,7 +181,7 @@ namespace qi {
       PyThreadSafeObject obj(callable);
 
       qi::Future<AnyValue> fut;
-      qi::Strand* strand = extractStrand(callable);
+      qi::Strand* strand = extractStrandFromCallable(callable);
       if (strand)
       {
         GILScopedUnlock _unlock;
@@ -206,7 +206,7 @@ namespace qi {
       PyThreadSafeObject obj(callable);
 
       qi::Future<AnyValue> fut;
-      qi::Strand* strand = extractStrand(callable);
+      qi::Strand* strand = extractStrandFromCallable(callable);
       if (strand)
       {
         GILScopedUnlock _unlock;

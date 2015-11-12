@@ -17,6 +17,7 @@
 #include <qi/strand.hpp>
 #include <qipython/gil.hpp>
 
+#include "pystrand.hpp"
 #include "pyobject_p.hpp"
 
 qiLogCategory("qipy.object");
@@ -273,6 +274,9 @@ namespace qi { namespace py {
       return ObjectThreadingModel_SingleThread;
     }
 
+    static void deletenoop(qi::Strand*)
+    {}
+
     qi::AnyObject makeQiAnyObject(boost::python::object obj)
     {
       {
@@ -352,13 +356,17 @@ namespace qi { namespace py {
 
           continue;
         }
-
-
       }
       //this is a useless callback, needed to keep a ref on obj.
       //when the GO is destructed, the ref is released.
       //doNothing use PyThreadSafeObject to lock the GIL as needed
-      return gob.object(boost::bind<void>(&doNothing, _1, obj));
+      qi::AnyObject anyobj = gob.object(boost::bind<void>(&doNothing, _1, obj));
+
+      if (qi::Strand* strand = extractStrandFromObject(obj))
+        // no need to keep the strand alive because the anyobject is already doing that
+        anyobj.forceExecutionContext(boost::shared_ptr<qi::Strand>(strand, deletenoop));
+
+      return anyobj;
     }
 
     void export_pyobject() {
