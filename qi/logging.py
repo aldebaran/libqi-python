@@ -29,9 +29,16 @@ def _logGetTraceInfo():
     stack = inspect.stack()
     info = None
     try:
-        callerframerecord = inspect.stack()[2]    # 0 represents this line
+        stack = inspect.stack()
+
+        # current stack's frame 0 is this frame
+        # frame 1 is the call on the Logger object
+        # frame 2 must be the place where the call was made from
+        callerframerecord = stack[2]
+
         frame = callerframerecord[0]
         info = inspect.getframeinfo(frame)
+
     except:
         info = Object()
         info.filename = '<file>'
