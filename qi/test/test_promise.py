@@ -201,7 +201,7 @@ def test_future_then_throw():
     p.setValue(1337)
     f2.wait(1000)
     assert f2.isFinished()
-    assert f2.error() == "RuntimeError: lol\n"
+    assert f2.error().endswith("RuntimeError: lol\n")
 
 def test_future_andthen():
 

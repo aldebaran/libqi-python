@@ -20,7 +20,7 @@ def test_async_fun():
 def test_async_error():
     f = qi.async(err)
     assert(f.hasError() == True)
-    assert(f.error().startswith("RuntimeError: sdsd"))
+    assert(f.error().endswith("RuntimeError: sdsd\n"))
 
 class Adder:
     def __init__(self):
