@@ -28,6 +28,9 @@ def load_libqipython():
     SDK without having to set LD_LIBRARY_PATH
     """
     deps = [
+            "libicudata.so",
+            "libicuuc.so",
+            "libicui18n.so",
             "libboost_python.so",
             "libboost_system.so",
             "libboost_chrono.so",
