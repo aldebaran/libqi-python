@@ -81,7 +81,7 @@ namespace qi { namespace py {
       ExecutionContext* ec = extractStrandFromCallable(callable);
       if (!ec)
         ec = qi::getEventLoop();
-      qi::Future<AnyValue> fut = ec->async(f, qi::MicroSeconds(delay));
+      qi::Future<AnyValue> fut = ec->asyncDelay(f, qi::MicroSeconds(delay));
 
       return boost::python::object(qi::py::toPyFuture(fut));
     }

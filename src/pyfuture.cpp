@@ -38,7 +38,7 @@ namespace qi {
         futs.push_back(*ex());
       }
       PyPromise prom;
-      waitForAll(futs).connect(&onBarrierFinished, _1, prom);
+      waitForAll(futs).async().then(boost::bind(&onBarrierFinished, _1, prom));
       return boost::python::object(prom.future());
     }
 
@@ -157,12 +157,12 @@ namespace qi {
       if (strand)
       {
         GILScopedUnlock _unlock;
-        connectWithStrand(strand, boost::bind<void>(&pyFutureCb, _1, obj));
+        connect(strand->schedulerFor(boost::bind(&pyFutureCb, _1, obj)));
       }
       else
       {
         GILScopedUnlock _unlock;
-        connect(boost::bind<void>(&pyFutureCb, _1, obj));
+        connect(boost::bind(&pyFutureCb, _1, obj));
       }
     }
 
@@ -185,8 +185,7 @@ namespace qi {
       if (strand)
       {
         GILScopedUnlock _unlock;
-        fut = this->thenR<qi::AnyValue>(
-            strand->schedulerFor<qi::AnyValue(const qi::Future<qi::AnyValue>&)>(&pyFutureThen, _1, obj));
+        fut = this->then(strand->schedulerFor(boost::bind(&pyFutureThen, _1, obj)));
       }
       else
       {
@@ -210,8 +209,7 @@ namespace qi {
       if (strand)
       {
         GILScopedUnlock _unlock;
-        fut = this->andThenR<qi::AnyValue>(
-            strand->schedulerFor<qi::AnyValue(const qi::AnyValue&)>(&pyFutureAndThen, _1, obj));
+        fut = this->andThen(strand->schedulerFor(boost::bind(&pyFutureAndThen, _1, obj)));
       }
       else
       {
@@ -224,9 +222,7 @@ namespace qi {
 
     boost::python::object PyFuture::unwrap()
     {
-      qi::Promise<qi::AnyValue> promise(this->isCancelable()
-          ? boost::bind(this->makeCanceler())
-          : boost::function<void(qi::Promise<qi::AnyValue>&)>(qi::PromiseNoop<qi::AnyValue>));
+      qi::Promise<qi::AnyValue> promise(boost::bind(this->makeCanceler()));
       this->connect(boost::bind(pyFutureUnwrap, _1, promise));
       return boost::python::object(PyFuture(promise.future()));
     }
@@ -353,9 +349,10 @@ namespace qi {
                "isCanceled() -> bool\n"
                ":return: true if the future is canceled.\n")
 
-          .def("isCancelable", &PyFuture::isCancelable,
+          .def("isCancelable", static_cast<bool(*)()>([]{ return true; }),
                "isCancelable() -> bool\n"
-               ":return: true if the future is cancelable. (not all future are cancelable)\n")
+               ":return: always true, all future are cancelable now\n"
+               ".. deprecated:: 2.5\n")
 
           .def("addCallback", &PyFuture::addCallback,
                "addCallback(cb) -> None\n"
