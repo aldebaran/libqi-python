@@ -2,14 +2,19 @@
 #define QIPY_STRAND_HELPERS
 
 #include <boost/python/object.hpp>
+#include <qi/strand.hpp>
 
 namespace qi
 {
 
-class Strand;
-
 namespace py
 {
+
+class PyStrand : public Strand
+{
+public:
+  ~PyStrand();
+};
 
 /**
  * \return the strand if the object is a functor bound to an actor, nullptr otherwise

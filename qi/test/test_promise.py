@@ -201,7 +201,7 @@ def test_future_then_throw():
     p.setValue(1337)
     f2.wait(1000)
     assert f2.isFinished()
-    assert f2.error() == "RuntimeError: lol\n"
+    assert f2.error().endswith("RuntimeError: lol\n")
 
 def test_future_andthen():
 
@@ -388,7 +388,7 @@ def test_future_barrier():
     f = futureBarrier([p.future() for p in proms])
     for p in proms:
         p.setValue(0)
-    f.wait()
+    f.value()
 
 def main():
     test_many_futures_create()

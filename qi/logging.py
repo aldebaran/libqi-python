@@ -26,9 +26,24 @@ VERBOSE = 5
 DEBUG   = 6
 
 def _logGetTraceInfo():
-    callerframerecord = inspect.stack()[2]    # 0 represents this line
-    frame = callerframerecord[0]
-    info = inspect.getframeinfo(frame)
+    stack = inspect.stack()
+    info = None
+    try:
+        stack = inspect.stack()
+
+        # current stack's frame 0 is this frame
+        # frame 1 is the call on the Logger object
+        # frame 2 must be the place where the call was made from
+        callerframerecord = stack[2]
+
+        frame = callerframerecord[0]
+        info = inspect.getframeinfo(frame)
+
+    except:
+        info = Object()
+        info.filename = '<file>'
+        info.function = '<function>'
+        info.lineno = -1
     return info
 
 def _printToString(mess, *args):

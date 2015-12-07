@@ -1,7 +1,7 @@
 #include "pystrand.hpp"
 #include <qipython/error.hpp>
+#include <qipython/gil.hpp>
 #include <boost/python.hpp>
-#include <qi/strand.hpp>
 
 qiLogCategory("qipy.strand");
 
@@ -92,16 +92,22 @@ qi::Strand* extractStrandFromObject(const boost::python::object& obj)
   if (hasattr(obj, "__qi_get_strand__"))
   {
     boost::python::object ostrand(obj.attr("__qi_get_strand__")());
-    boost::python::extract<qi::Strand&> estrand(ostrand);
+    boost::python::extract<PyStrand&> estrand(ostrand);
     if (estrand.check())
       return &estrand();
   }
   return 0;
 }
 
+PyStrand::~PyStrand()
+{
+  GILScopedUnlock _;
+  this->join();
+}
+
 void export_pystrand()
 {
-  boost::python::class_<qi::Strand, boost::noncopyable>("Strand",
+  boost::python::class_<PyStrand, boost::noncopyable>("Strand",
       boost::python::init<>());
 }
 

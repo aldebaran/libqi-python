@@ -20,7 +20,7 @@ def test_async_fun():
 def test_async_error():
     f = qi.async(err)
     assert(f.hasError() == True)
-    assert(f.error().startswith("RuntimeError: sdsd"))
+    assert(f.error().endswith("RuntimeError: sdsd\n"))
 
 class Adder:
     def __init__(self):
@@ -70,6 +70,11 @@ def test_async_cancel():
     assert(f.isFinished())
     assert(not f.hasError())
     assert(f.isCanceled())
+
+def test_async_nested_future():
+    f = qi.async(lambda: qi.Future(42))
+    assert isinstance(f, qi.Future)
+    assert isinstance(f.value(), qi.Future)
 
 def main():
     test_async_fun()

@@ -26,8 +26,6 @@ namespace qi {
     class PyThreadSafeObject;
 
     class PyFuture : public qi::Future<qi::AnyValue> {
-    protected:
-      PyFuture(const qi::Future<qi::AnyValue>& fut);
       friend class PyPromise;
       friend class PyFutureBarrier;
       friend void pyFutureCb(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable);
@@ -37,6 +35,7 @@ namespace qi {
     public:
       PyFuture();
       PyFuture(const boost::python::object& obj);
+      PyFuture(const qi::Future<qi::AnyValue>& fut);
       boost::python::object value(int msecs = qi::FutureTimeout_Infinite) const;
       std::string error(int msecs = qi::FutureTimeout_Infinite) const;
       void addCallback(const boost::python::object &callable);

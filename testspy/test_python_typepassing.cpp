@@ -201,12 +201,12 @@ TEST_F(TypePassing, Recursive)
   registerService();
   qi::AnyValue v = getService().call<qi::AnyValue>("func");
   std::map<std::string, qi::AnyValue> map = v.to<std::map<std::string, qi::AnyValue> >();
-  ASSERT_EQ(3, map.size());
+  ASSERT_EQ(3U, map.size());
   ASSERT_EQ(1, map["one"].toInt());
   ASSERT_EQ(1, (*map["two"])[0].toInt());
   ASSERT_EQ(2, (*map["two"])[1].toInt());
   std::map<int, std::string> map2 = (*map["three"]).to<std::map<int, std::string> >();
-  ASSERT_EQ(1, map2.size());
+  ASSERT_EQ(1U, map2.size());
   ASSERT_EQ("answer", map2[42]);
 }
 
