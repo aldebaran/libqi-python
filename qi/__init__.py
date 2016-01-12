@@ -131,7 +131,7 @@ def _stopApplication():
         _app = None
 
 #application is a singleton, it should live till the end of the program
-#because it own eventloops
+#because it owns eventloops
 def Application(args=None, raw=False, autoExit=True, url=None):
     import sys
     global _app
