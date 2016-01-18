@@ -26,7 +26,6 @@ VERBOSE = 5
 DEBUG   = 6
 
 def _logGetTraceInfo():
-    stack = inspect.stack()
     info = None
     try:
         stack = inspect.stack()
