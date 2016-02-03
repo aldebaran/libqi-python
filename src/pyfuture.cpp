@@ -223,7 +223,17 @@ namespace qi {
     boost::python::object PyFuture::unwrap()
     {
       qi::Promise<qi::AnyValue> promise(boost::bind(this->makeCanceler()));
-      this->connect(boost::bind(pyFutureUnwrap, _1, promise));
+      {
+        // why should we unlock here? let me tell you a story...
+        // the gil is locked
+        // future.connect takes the future's lock
+        // and on another thread...
+        // something calls setValue on the corresponding promise which takes the same lock
+        // setValue copies the value which is in fact a PyThreadSafeObject, and it takes the gil
+        // boom deadlock.
+        GILScopedUnlock _unlock;
+        this->connect(boost::bind(pyFutureUnwrap, _1, promise));
+      }
       return boost::python::object(PyFuture(promise.future()));
     }
 

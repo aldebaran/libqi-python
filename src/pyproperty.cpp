@@ -12,7 +12,6 @@
 #include "pystrand.hpp"
 
 namespace qi { namespace py {
-
     void pyPropertyCb(const qi::AnyValue& val, const PyThreadSafeObject& callable) {
       GILScopedLock _lock;
       PY_CATCH_ERROR(callable.object()(val.to<boost::python::object>()));
@@ -38,7 +37,7 @@ namespace qi { namespace py {
       }
 
       boost::python::object val() const {
-        return value().to<boost::python::object>();
+        return value().value().to<boost::python::object>();
       }
 
       //change the name to avoid warning "hidden overload in base class" : YES WE KNOW :)
@@ -228,6 +227,5 @@ namespace qi { namespace py {
           .def("connect", &PyProxyProperty::addCallback, (boost::python::arg("cb"), boost::python::arg("_async") = false))
           .def("disconnect", &PyProxyProperty::disc, (boost::python::arg("id"), boost::python::arg("_async") = false));
     }
-
   }
 }
