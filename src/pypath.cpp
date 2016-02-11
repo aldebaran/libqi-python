@@ -87,11 +87,13 @@ namespace qi {
                          "\n"
                          "Look for a library in the system.");
 
-      boost::python::def("findConf", &qi::path::findConf,
+      boost::python::def("findConf", &qi::path::findConf, (boost::python::arg("application"),
+                                    boost::python::arg("file"), boost::python::arg("excludeUserWritablePath") = false),
                          "findConf(application, file) -> string\n"
                          ":param application: string. The name of the application.\n"
                          ":param file: string. The name of the file to look for."
                          " You can specify subdirectories using '/' as a separator.\n"
+                         ":param excludeUserWritablePath: If true, findConf() won't search into userWritableConfPath.\n"
                          ":return: the complete, native path to the file found. An empty string otherwise.\n"
                          "\n"
                          "Look for a configuration file in the system.");
