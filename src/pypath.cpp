@@ -104,6 +104,7 @@ namespace qi {
                          ":param application: string. The name of the application.\n"
                          ":param file: string. The name of the file to look for."
                          " You can specify subdirectories using a '/' as a separator.\n"
+                         ":param excludeUserWritablePath: If true, findData() won't search into userWritableDataPath.\n"
                          ":return: the complete, native path to the file found. An empty string otherwise.\n"
                          "\n"
                          "Look for a file in all dataPaths(application) directories. Return the first match.");
