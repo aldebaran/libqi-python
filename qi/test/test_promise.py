@@ -89,8 +89,14 @@ def test_many_promises_wait_cancel():
         else:
             assert f.value() == "mjolk"
 
-def test_future_cancel_request():
+def test_future_cancel_request_noop():
     promise = Promise(PromiseNoop)
+    future = promise.future()
+    future.cancel()
+    assert promise.isCancelRequested()
+
+def test_future_cancel_request():
+    promise = Promise()
     future = promise.future()
     future.cancel()
     assert promise.isCancelRequested()
@@ -245,7 +251,7 @@ def test_future_andthen_cancel():
         called = True
         assert False
 
-    p = Promise(PromiseNoop)
+    p = Promise()
     f = p.future()
     f2 = f.andThen(callback)
     f2.cancel()
@@ -361,12 +367,12 @@ def test_future_unwrap():
     assert future.value() == 42
 
 def test_future_unwrap_cancel():
-    prom = Promise(PromiseNoop)
+    prom = Promise()
     future = prom.future().unwrap()
     future.cancel()
 
     assert prom.isCancelRequested()
-    nested = Promise(PromiseNoop)
+    nested = Promise()
     prom.setValue(nested.future())
     # TODO add some sync-ness to remove those time.sleep :(
     time.sleep(0.1)
