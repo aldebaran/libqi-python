@@ -65,6 +65,7 @@ def test_periodic_task():
 
 def test_async_cancel():
     f = qi.async(fail, delay=1000000)
+    assert(f.isCancelable())
     f.cancel()
     f.wait()
     assert(f.isFinished())

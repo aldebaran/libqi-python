@@ -345,7 +345,7 @@ namespace qi {
 
           .def("cancel", &PyFuture::cancel,
                "cancel() -> None\n"
-               "If the future is cancelable, ask for cancelation.")
+               "Ask for cancelation.")
 
           .def("isFinished", &PyFuture::isFinished,
                "isFinished() -> bool\n"
@@ -359,7 +359,7 @@ namespace qi {
                "isCanceled() -> bool\n"
                ":return: true if the future is canceled.\n")
 
-          .def("isCancelable", static_cast<bool(*)()>([]{ return true; }),
+          .def("isCancelable", static_cast<bool(*)(PyFuture *)>([](PyFuture *){ return true; }),
                "isCancelable() -> bool\n"
                ":return: always true, all future are cancelable now\n"
                ".. deprecated:: 2.5\n")
