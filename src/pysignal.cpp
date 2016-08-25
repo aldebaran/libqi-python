@@ -31,9 +31,10 @@ namespace qi { namespace py {
       return qi::AnyReference::from(ret).clone();
     }
 
-    static void pysignalOnSubscribe(const PyThreadSafeObject& callable, bool subscribers) {
+    static Future<void> pysignalOnSubscribe(const PyThreadSafeObject& callable, bool subscribers) {
       GILScopedLock _lock;
       PY_CATCH_ERROR(callable.object()(subscribers));
+      return Future<void>{0};
     }
 
     //use a shared_ptr to allow optional destruction of SignalBase (when not owned by us)
