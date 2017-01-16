@@ -83,6 +83,7 @@ void registerObjs(qi::ModuleBuilder* mb)
   mb->advertiseFactory<Cat, std::string>("Cat");
   mb->advertiseFactory<Cat, const qi::SessionPtr&>("Cat");
   mb->advertiseMethod("lol", &lol);
+  mb->advertiseMethod("_hidden", []{});
 }
 
 QI_REGISTER_MODULE("moduletest", &registerObjs);
