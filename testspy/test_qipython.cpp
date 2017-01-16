@@ -1,6 +1,7 @@
 #include <Python.h>
 #include <gtest/gtest.h>
 #include <qi/anyobject.hpp>
+#include <qi/application.hpp>
 #include <qi/session.hpp>
 #include <qi/jsoncodec.hpp>
 #include <qipython/gil.hpp>
@@ -16,6 +17,7 @@ PyThreadState *mainstate;
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
+  qi::Application app(argc, argv);
   if (argc < 3)
   {
     std::cerr << "Usage: " << argv[0] << " <sdk path> <src path> [pythonhome]" << std::endl;
