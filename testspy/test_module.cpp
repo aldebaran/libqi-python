@@ -3,6 +3,8 @@
 #include <qipython/gil.hpp>
 #include <qi/anymodule.hpp>
 
+qiLogCategory("TestQiPython.Module");
+
 void myExec(const std::string& str)
 {
   boost::python::object globals = boost::python::import("__main__").attr("__dict__");
