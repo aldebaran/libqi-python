@@ -37,8 +37,10 @@ namespace qi {
 
         futs.push_back(*ex());
       }
+      auto fut = waitForAll(futs).async();
       PyPromise prom;
-      waitForAll(futs).async().then(boost::bind(&onBarrierFinished, _1, prom));
+      prom.setOnCancel(boost::bind(fut.makeCanceler()));
+      fut.then(boost::bind(&onBarrierFinished, _1, prom));
       return boost::python::object(prom.future());
     }
 

@@ -389,12 +389,26 @@ def test_future_unwrap_notfuture():
     assert future.hasError()
 
 def test_future_barrier():
-    proms = [Promise() for x in range(10)]
+    proms = [Promise() for x in range(2)]
 
     f = futureBarrier([p.future() for p in proms])
     for p in proms:
         p.setValue(0)
-    f.value()
+    futs = f.value()
+    for fut in futs:
+        assert fut.value() == 0
+
+def test_future_barrier_cancel():
+    proms = [Promise() for x in range(2)]
+
+    f = futureBarrier([p.future() for p in proms])
+    proms[0].setValue(0)
+    f.cancel()
+    assert proms[1].isCancelRequested()
+    proms[1].setCanceled()
+    futs = f.value()
+    assert futs[0].value() == 0
+    assert futs[1].isCanceled()
 
 def main():
     test_many_futures_create()
@@ -413,6 +427,8 @@ def main():
     test_future_callback_noargs()
     test_future_many_callback()
     #test_many_callback_threaded()
+    test_future_barrier()
+    test_future_barrier_cancel()
 
 if __name__ == "__main__":
     main()
