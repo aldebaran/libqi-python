@@ -33,6 +33,11 @@ TEST(ModuleFromCpp, importModule)
   myExec("import qi\nqi.module('moduletest')");
 }
 
+TEST(ModuleFromCpp, importAbsentModuleThrows)
+{
+  ASSERT_ANY_THROW(myExec("import qi\nqi.module('nobody_here')"));
+}
+
 TEST(ModuleFromCpp, callModuleHiddenMethod)
 {
   myExec("import qi\nmodule=qi.module('moduletest')\nmodule._hidden()");
