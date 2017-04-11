@@ -7,6 +7,7 @@ qiLogCategory("TestQiPython.Module");
 
 void myExec(const std::string& str)
 {
+  qi::py::GILScopedLock _lock;
   boost::python::object globals = boost::python::import("__main__").attr("__dict__");
   boost::python::exec(str.c_str(), globals, globals);
 }
@@ -29,12 +30,10 @@ TEST(Module, listModules)
 
 TEST(ModuleFromCpp, importModule)
 {
-  qi::py::GILScopedLock _lock;
   myExec("import qi\nqi.module('moduletest')");
 }
 
 TEST(ModuleFromCpp, callModuleHiddenMethod)
 {
-  qi::py::GILScopedLock _lock;
   myExec("import qi\nmodule=qi.module('moduletest')\nmodule._hidden()");
 }
