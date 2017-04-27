@@ -85,7 +85,7 @@ namespace qi {
     class PyApplication {
     public:
       PyApplication(boost::python::list args) {
-        ArgumentConverter         ac(args);
+        ArgumentConverter ac(args);
 
         _app = boost::shared_ptr<qi::Application>(new qi::Application(ac.argc, ac.argv));
         ac.update(args);
