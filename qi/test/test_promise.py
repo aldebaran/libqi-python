@@ -89,8 +89,14 @@ def test_many_promises_wait_cancel():
         else:
             assert f.value() == "mjolk"
 
-def test_future_cancel_request():
+def test_future_cancel_request_noop():
     promise = Promise(PromiseNoop)
+    future = promise.future()
+    future.cancel()
+    assert promise.isCancelRequested()
+
+def test_future_cancel_request():
+    promise = Promise()
     future = promise.future()
     future.cancel()
     assert promise.isCancelRequested()
@@ -245,7 +251,7 @@ def test_future_andthen_cancel():
         called = True
         assert False
 
-    p = Promise(PromiseNoop)
+    p = Promise()
     f = p.future()
     f2 = f.andThen(callback)
     f2.cancel()
@@ -361,12 +367,12 @@ def test_future_unwrap():
     assert future.value() == 42
 
 def test_future_unwrap_cancel():
-    prom = Promise(PromiseNoop)
+    prom = Promise()
     future = prom.future().unwrap()
     future.cancel()
 
     assert prom.isCancelRequested()
-    nested = Promise(PromiseNoop)
+    nested = Promise()
     prom.setValue(nested.future())
     # TODO add some sync-ness to remove those time.sleep :(
     time.sleep(0.1)
@@ -383,12 +389,26 @@ def test_future_unwrap_notfuture():
     assert future.hasError()
 
 def test_future_barrier():
-    proms = [Promise() for x in range(10)]
+    proms = [Promise() for x in range(2)]
 
     f = futureBarrier([p.future() for p in proms])
     for p in proms:
         p.setValue(0)
-    f.value()
+    futs = f.value()
+    for fut in futs:
+        assert fut.value() == 0
+
+def test_future_barrier_cancel():
+    proms = [Promise() for x in range(2)]
+
+    f = futureBarrier([p.future() for p in proms])
+    proms[0].setValue(0)
+    f.cancel()
+    assert proms[1].isCancelRequested()
+    proms[1].setCanceled()
+    futs = f.value()
+    assert futs[0].value() == 0
+    assert futs[1].isCanceled()
 
 def main():
     test_many_futures_create()
@@ -407,6 +427,8 @@ def main():
     test_future_callback_noargs()
     test_future_many_callback()
     #test_many_callback_threaded()
+    test_future_barrier()
+    test_future_barrier_cancel()
 
 if __name__ == "__main__":
     main()

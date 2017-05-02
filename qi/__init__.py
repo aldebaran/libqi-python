@@ -110,8 +110,8 @@ from .logging import getLogger, logFatal, logError, logWarning, logInfo, logVerb
 from .translator import defaultTranslator, tr, Translator
 
 def PromiseNoop(*args, **kwargs):
-    """No operation function for use with Promise to make it cancellable
-    without doing anything special"""
+    """No operation function
+    .. deprecated:: 2.5"""
     pass
 
 #rename isinstance here. (isinstance should not be used in this file)

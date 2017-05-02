@@ -1,4 +1,6 @@
 <project version="3">
+  <maintainer email="jlamotte@aldebaran.com">Joël Lamotte</maintainer>
+  <maintainer email="jmonnon@aldebaran.com">Jérémy Monnon</maintainer>
   <qibuild name="libqi-python">
     <depends runtime="true" buildtime="true" names="libqi python" />
   </qibuild>

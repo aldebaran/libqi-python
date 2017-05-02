@@ -44,7 +44,7 @@ namespace qi { namespace py {
       //        qiLogDebug() << "calling a method: " << funN << " args:" << qi::encodeJSON(val);
 
       qi::Future<qi::AnyValue> fut;
-      qi::Promise<qi::AnyValue> res(qi::PromiseNoop<qi::AnyValue>);
+      qi::Promise<qi::AnyValue> res;
       PyPromise pyprom(res);
       {
         //calling c++, so release the GIL.

@@ -37,8 +37,10 @@ namespace qi {
 
         futs.push_back(*ex());
       }
+      auto fut = waitForAll(futs).async();
       PyPromise prom;
-      waitForAll(futs).async().then(boost::bind(&onBarrierFinished, _1, prom));
+      prom.setOnCancel(boost::bind(fut.makeCanceler()));
+      fut.then(boost::bind(&onBarrierFinished, _1, prom));
       return boost::python::object(prom.future());
     }
 
@@ -190,8 +192,7 @@ namespace qi {
       else
       {
         GILScopedUnlock _unlock;
-        fut = this->thenR<qi::AnyValue>(
-              boost::bind(&pyFutureThen, _1, obj));
+        fut = this->then(boost::bind(&pyFutureThen, _1, obj));
       }
       return boost::python::object(PyFuture(fut));
     }
@@ -214,8 +215,7 @@ namespace qi {
       else
       {
         GILScopedUnlock _unlock;
-        fut = this->andThenR<qi::AnyValue>(
-              boost::bind(&pyFutureAndThen, _1, obj));
+        fut = this->andThen(boost::bind(&pyFutureAndThen, _1, obj));
       }
       return boost::python::object(PyFuture(fut));
     }
