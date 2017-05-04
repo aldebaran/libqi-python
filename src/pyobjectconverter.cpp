@@ -193,6 +193,11 @@ struct ToPyObject
     visitUnknown(v);
   }
 
+  void visitOptional(qi::AnyReference v)
+  {
+    result = PyObject_from_AnyValue(v.content());
+  }
+
   boost::python::object& result;
 };
 
