@@ -7,6 +7,7 @@
 
 from _qi import pylog
 from _qi import setLevel, setContext, setFilters
+from collections import namedtuple
 import inspect
 import uuid
 
@@ -39,10 +40,8 @@ def _logGetTraceInfo():
         info = inspect.getframeinfo(frame)
 
     except:
-        info = Object()
-        info.filename = '<file>'
-        info.function = '<function>'
-        info.lineno = -1
+        FakeTrackback = namedtuple("FakeTrackback", ["filename", "function", "lineno"])
+        info = FakeTrackback('<file>', '<function>', -1)
     return info
 
 def _printToString(mess, *args):
