@@ -229,3 +229,13 @@ namespace qi { namespace py {
     }
   }
 }
+
+namespace boost
+{
+    template <>
+    qi::py::PyProperty const volatile * get_pointer<class qi::py::PyProperty const volatile >(
+        class qi::py::PyProperty const volatile *c)
+        {
+            return c;
+        }
+}
