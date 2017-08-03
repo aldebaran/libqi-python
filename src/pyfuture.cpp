@@ -29,7 +29,7 @@ namespace qi {
     boost::python::object pyFutureBarrier(boost::python::list l)
     {
       std::vector<qi::Future<qi::AnyValue> > futs;
-      for (unsigned i = 0; i < boost::python::len(l); ++i)
+      for (long i = 0; i < boost::python::len(l); ++i)
       {
         boost::python::extract<PyFuture*> ex(l[i]);
         if (!ex.check())

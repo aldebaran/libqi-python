@@ -206,7 +206,7 @@ namespace qi { namespace py {
     static boost::python::object signal_param_shrinker(boost::python::tuple args, boost::python::dict kwargs) {
       T& pys = boost::python::extract<T&>(args[0]);
       boost::python::list l;
-      for (unsigned i = 1; i < boost::python::len(args); ++i)
+      for (long i = 1; i < boost::python::len(args); ++i)
         l.append(args[i]);
       pys.trig(boost::python::tuple(l), kwargs);
       return boost::python::object();
