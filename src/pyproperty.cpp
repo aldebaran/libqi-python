@@ -12,9 +12,13 @@
 #include "pystrand.hpp"
 
 namespace qi { namespace py {
-    void pyPropertyCb(const qi::AnyValue& val, const PyThreadSafeObject& callable) {
-      GILScopedLock _lock;
-      PY_CATCH_ERROR(callable.object()(val.to<boost::python::object>()));
+    qi::AnyFunction makePyPropertyCb(const PyThreadSafeObject& callable)
+    {
+      return qi::AnyFunction::from([callable](const qi::AnyValue& value)
+      {
+        GILScopedLock lock;
+        PY_CATCH_ERROR(callable.object()(value.to<boost::python::object>()));
+      });
     }
 
     class PyProperty : public qi::GenericProperty {
@@ -65,12 +69,12 @@ namespace qi { namespace py {
         if (strand)
         {
           GILScopedUnlock _unlock;
-          link = connect(SignalSubscriber(qi::AnyFunction::from(boost::bind<void>(&pyPropertyCb, _1, obj)), strand));
+          link = connect(SignalSubscriber{makePyPropertyCb(obj), strand});
         }
         else
         {
           GILScopedUnlock _unlock;
-          link = connect(boost::bind<void>(&pyPropertyCb, _1, obj));
+          link = connect(makePyPropertyCb(obj));
         }
 
         if (_async)
@@ -151,12 +155,12 @@ namespace qi { namespace py {
         if (strand)
         {
           GILScopedUnlock _unlock;
-          f = _obj.connect(_sigid, SignalSubscriber(qi::AnyFunction::from(boost::bind<void>(&pyPropertyCb, _1, obj)), strand));
+          f = _obj.connect(_sigid, SignalSubscriber{makePyPropertyCb(obj), strand});
         }
         else
         {
           GILScopedUnlock _unlock;
-          f = _obj.connect(_sigid, AnyFunction::from(boost::bind<void>(&pyPropertyCb, _1, obj)));
+          f = _obj.connect(_sigid, makePyPropertyCb(obj));
         }
         return toPyFutureAsync(f, _async);
       }
