@@ -3,6 +3,7 @@
   <maintainer email="jmonnon@aldebaran.com">Jérémy Monnon</maintainer>
   <qibuild name="libqi-python">
     <depends runtime="true" buildtime="true" names="libqi python" />
+    <depends testtime="true" names="gtest"/>
   </qibuild>
   <qipython name="libqi-python">
     <package name="qi" />
