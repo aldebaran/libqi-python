@@ -10,6 +10,11 @@ namespace qi
 namespace py
 {
 
+extern const char* const objectAttributeStrandName;
+extern const char* const objectAttributeThreadingName;
+extern const char* const objectAttributeThreadingValueMulti;
+extern const char* const objectAttributeImSelfName;
+
 class PyStrand : public Strand
 {
 public:
@@ -24,6 +29,9 @@ qi::Strand* extractStrandFromCallable(const boost::python::object& callable);
  * \return the strand if the python object has one, nullptr otherwise
  */
 qi::Strand* extractStrandFromObject(const boost::python::object& obj);
+
+/// Returns true if the object was declared as multithreaded, false otherwise.
+bool isMultithreaded(const boost::python::object& obj);
 
 void export_pystrand();
 

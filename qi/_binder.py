@@ -87,11 +87,6 @@ class singleThreaded():
             f : function to bind.
         """
         f.__qi_threading__ = "single"
-        def get_strand(self):
-            if not hasattr(self, "__qi_strand__"):
-                self.__qi_strand__ = Strand()
-            return self.__qi_strand__
-        f.__qi_get_strand__ = get_strand
         return f
 
 class multiThreaded():
