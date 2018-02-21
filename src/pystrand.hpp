@@ -1,6 +1,7 @@
 #ifndef QIPY_STRAND_HELPERS
 #define QIPY_STRAND_HELPERS
 
+#include <memory>
 #include <boost/python/object.hpp>
 #include <qi/strand.hpp>
 
@@ -15,11 +16,14 @@ extern const char* const objectAttributeThreadingName;
 extern const char* const objectAttributeThreadingValueMulti;
 extern const char* const objectAttributeImSelfName;
 
-class PyStrand : public Strand
-{
-public:
-  ~PyStrand();
+// This deleter is necessary to make sure we delete the object
+// outside of the lock of the GIL.
+struct DeleterPyStrand {
+  void operator()(qi::Strand* strand) const;
 };
+
+using PyStrand = std::shared_ptr<qi::Strand>;
+
 
 /**
  * \return the strand if the object is a functor bound to an actor, nullptr otherwise

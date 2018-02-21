@@ -126,7 +126,7 @@ namespace qi { namespace py {
           QI_TEMPLATE_TYPE_GET(obj.asGenericObject()->type, FutureSync))
         return boost::python::object(PyFuture(obj.async<qi::AnyValue>("_getSelf")));
 
-      boost::python::object result = boost::python::object(qi::py::PyQiObject(obj));
+      boost::python::object result { qi::py::PyQiObject(obj) };
       qi::py::populateMethods(result, obj);
       qi::py::populateSignals(result, obj);
       qi::py::populateProperties(result, obj);
