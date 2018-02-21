@@ -36,12 +36,21 @@ namespace qi { namespace py {
         this->disconnectAll();
       }
 
-      boost::python::object val() const {
-        return value().value().to<boost::python::object>();
+      boost::python::object val() const
+      {
+        qi::Future<qi::AnyValue> f;
+        {
+          GILScopedUnlock _unlock;
+          f = qi::GenericProperty::value();
+          f.wait();
+        }
+        return f.value().to<boost::python::object>();
       }
 
       //change the name to avoid warning "hidden overload in base class" : YES WE KNOW :)
-      void setVal(boost::python::object obj) {
+      void setVal(boost::python::object obj)
+      {
+        GILScopedUnlock _;
         qi::GenericProperty::setValue(obj);
       }
 
