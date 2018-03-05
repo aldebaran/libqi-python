@@ -5,10 +5,44 @@
 
 qiLogCategory("qipy.strand");
 
+
+
 namespace qi
 {
 namespace py
 {
+
+const char* const objectAttributeStrandName =  "__qi_strand__";
+const char* const objectAttributeThreadingName =  "__qi_threading__";
+const char* const objectAttributeThreadingValueMulti = "multi";
+const char* const objectAttributeImSelfName = "im_self";
+
+
+namespace {
+
+  boost::python::object strandAttribute(const boost::python::object& object)
+  {
+    if (qi::py::isMultithreaded(object))
+      return {};
+
+    auto strandObject = boost::python::getattr(object,
+      qi::py::objectAttributeStrandName, boost::python::object());
+    if (!strandObject)
+    {
+      strandObject = boost::python::object(PyStrand{ new qi::Strand, DeleterPyStrand{} });
+      boost::python::setattr(object, qi::py::objectAttributeStrandName, strandObject);
+    }
+    return strandObject;
+  }
+
+}
+
+void DeleterPyStrand::operator()(qi::Strand* strand) const
+{
+  GILScopedUnlock _;
+  strand->join();
+  delete strand;
+}
 
 bool hasattr(boost::python::object obj, const std::string& attr)
 {
@@ -17,8 +51,8 @@ bool hasattr(boost::python::object obj, const std::string& attr)
 
 boost::python::object extractBound(const boost::python::object& obj)
 {
-  if (hasattr(obj, "im_self"))
-    return obj.attr("im_self");
+  if (hasattr(obj, objectAttributeImSelfName))
+    return obj.attr(objectAttributeImSelfName);
   return boost::python::object();
 }
 
@@ -87,27 +121,34 @@ qi::Strand* extractStrandFromCallable(const boost::python::object& obj)
   return extractStrandFromObject(self);
 }
 
+// TODO: return a safer access to the strand.
+// TODO: review/rewrite strand and eventloop accecss and usage which seem dangerous in current code.
 qi::Strand* extractStrandFromObject(const boost::python::object& obj)
 {
-  if (hasattr(obj, "__qi_get_strand__"))
+  if (auto strandObject = strandAttribute(obj))
   {
-    boost::python::object ostrand(obj.attr("__qi_get_strand__")());
-    boost::python::extract<PyStrand&> estrand(ostrand);
-    if (estrand.check())
-      return &estrand();
+    boost::python::extract<PyStrand&> extractStrand{strandObject};
+    if (extractStrand.check())
+    {
+      return extractStrand().get();
+    }
   }
-  return 0;
+  return nullptr;
 }
 
-PyStrand::~PyStrand()
+
+bool isMultithreaded(const boost::python::object& obj)
 {
-  GILScopedUnlock _;
-  this->join();
+  // An object is multithreaded only if it is declared as such. In any other case it is, either
+  // explicitly or implicitly, singlethreaded.
+  const auto pyqisig =
+      boost::python::getattr(obj, objectAttributeThreadingName, boost::python::object());
+  return pyqisig && boost::python::extract<std::string>(pyqisig)() == objectAttributeThreadingValueMulti;
 }
 
 void export_pystrand()
 {
-  boost::python::class_<PyStrand, boost::noncopyable>("Strand",
+  boost::python::class_<PyStrand>("Strand",
       boost::python::init<>());
 }
 

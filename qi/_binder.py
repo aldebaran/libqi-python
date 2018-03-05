@@ -71,10 +71,24 @@ def nobind(func):
 class singleThreaded():
     """ singleThreaded()
 
-        This class decorator specifies that methods of this class will be run one at a time. That means
-        that two methods wont never run at the same time.
-        So you dont have to care about thread safeness.
-        This is the default.
+        This class decorator specifies that some methods of this class will
+        never be called at the same time on the same instance by the qi module,
+        by doing the calls sequentially and ensuring thread safety without the
+        need of some extra synchronisation mechanism.
+
+        This guarantee only applies to method calls that originate from the qi
+        module, which mostly concerns bound methods and methods connected as
+        callbacks of signals.
+
+        It does not apply to private methods (methods that start with
+        '__'), including but not restricted to __init__, __del__, __enter__ and
+        __exit__.
+
+        One consequence of this is that a sequenced method call on an object
+        must finish before another sequenced method call on the same object can
+        be made.
+
+        This is the default behavior.
     """
     def __init(self, _):
         pass
@@ -87,18 +101,16 @@ class singleThreaded():
             f : function to bind.
         """
         f.__qi_threading__ = "single"
-        def get_strand(self):
-            if not hasattr(self, "__qi_strand__"):
-                self.__qi_strand__ = Strand()
-            return self.__qi_strand__
-        f.__qi_get_strand__ = get_strand
         return f
 
 class multiThreaded():
     """ multiThreaded()
 
-        This class decorator specifies that all methods in the class can be run concurrently.
-        You will have to protect your methods for threadsafety.
+        This class decorator specifies that methods in the class are allowed to be called
+        concurrently.
+
+        This implies that the developer of the class must garantee no concurrent access to it's
+        internal data, usually by using some synchronization mechanism.
     """
     def __init(self, _):
         pass
