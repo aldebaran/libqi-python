@@ -52,6 +52,36 @@ public:
         pyargs, pykws);
   }
 
+  bool operator==(const PyQiObject& x) const
+  {
+    return _object == x._object;
+  }
+
+  bool operator!=(const PyQiObject& x) const
+  {
+    return _object != x._object;
+  }
+
+  bool operator<(const PyQiObject& x) const
+  {
+    return _object < x._object;
+  }
+
+  bool operator<=(const PyQiObject& x) const
+  {
+    return _object <= x._object;
+  }
+
+  bool operator>(const PyQiObject& x) const
+  {
+    return _object > x._object;
+  }
+
+  bool operator>=(const PyQiObject& x) const
+  {
+    return _object >= x._object;
+  }
+
   boost::python::object metaObject()
   {
     return qi::AnyReference::from(_object.metaObject())
