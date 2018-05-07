@@ -370,6 +370,12 @@ namespace qi { namespace py {
 
     void export_pyobject() {
       boost::python::class_<qi::py::PyQiObject>("Object", boost::python::no_init)
+          .def("__eq__", &PyQiObject::operator==)
+          .def("__ne__", &PyQiObject::operator!=)
+          .def("__lt__", &PyQiObject::operator<)
+          .def("__le__", &PyQiObject::operator<=)
+          .def("__gt__", &PyQiObject::operator>)
+          .def("__ge__", &PyQiObject::operator>=)
           .def("call", boost::python::raw_function(&pyParamShrinker<PyQiObject>, 1))
           .def("async", boost::python::raw_function(&pyParamShrinkerAsync<PyQiObject>, 1))
           //TODO: .def("post")
