@@ -78,12 +78,25 @@ namespace qi { namespace py {
       // AnyValue is easier to use
       boost::function<AnyValue()> f = boost::bind(&pyAsync, PyThreadSafeObject(args));
 
-      ExecutionContext* ec = extractStrandFromCallable(callable);
-      if (!ec)
-        ec = qi::getEventLoop();
-      qi::Future<AnyValue> fut = ec->asyncDelay(f, qi::MicroSeconds(delay));
+      // If there is a strand attached to that callable, we use it but we cannot use asyncDelay (we
+      // use defer instead). This is because we might be executing this function from inside the
+      // strand execution context, and thus asyncDelay might be blocking.
+      qi::Promise<AnyValue> prom;
+      qi::Strand* strand = extractStrandFromCallable(callable);
+      if (strand)
+      {
+        strand->defer([=]() mutable { prom.setValue(f()); }, qi::MicroSeconds(delay))
+          .connect([=](qi::Future<void> fut) mutable {
+              if (fut.hasError())
+                prom.setError(fut.error());
+              else if (fut.isCanceled())
+                prom.setCanceled();
+            });
+      }
+      else
+        qi::adaptFuture(qi::getEventLoop()->asyncDelay(f, qi::MicroSeconds(delay)), prom);
 
-      return boost::python::object(qi::py::toPyFuture(fut));
+      return boost::python::object(qi::py::toPyFuture(prom.future()));
     }
 
 
