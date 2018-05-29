@@ -198,6 +198,12 @@ def test_type():
     assert qi.List(qi.Int8()) == qi.List(qi.Int8())
     assert qi.List(qi.Int8()) == qi.List(qi.Int8)
     assert qi.List(qi.Int8) == qi.List(qi.Int8())
+    with pytest.raises(Exception):
+        assert qi.Optional != qi.Optional(qi.Int8)
+    assert qi.Optional(qi.Int8) == qi.Optional(qi.Int8)
+    assert qi.Optional(qi.Int8()) == qi.Optional(qi.Int8())
+    assert qi.Optional(qi.Int8()) == qi.Optional(qi.Int8)
+    assert qi.Optional(qi.Int8) == qi.Optional(qi.Int8())
     assert qi.Object != qi.Int8
     assert qi.Object != qi.Int8()
     assert qi.Object != qi.Int32()
