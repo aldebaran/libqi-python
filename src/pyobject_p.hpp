@@ -82,6 +82,11 @@ public:
     return _object >= x._object;
   }
 
+  bool isValid() const
+  {
+    return _object.isValid();
+  }
+
   boost::python::object metaObject()
   {
     return qi::AnyReference::from(_object.metaObject())
