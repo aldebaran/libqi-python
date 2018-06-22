@@ -122,6 +122,9 @@ namespace qi { namespace py {
 
 
     boost::python::object makePyQiObject(qi::AnyObject obj, const std::string &name) {
+      if (!obj.isValid())
+        return boost::python::object{ qi::py::PyQiObject(obj) };
+
       if (QI_TEMPLATE_TYPE_GET(obj.asGenericObject()->type, Future) ||
           QI_TEMPLATE_TYPE_GET(obj.asGenericObject()->type, FutureSync))
         return boost::python::object(PyFuture(obj.async<qi::AnyValue>("_getSelf")));
@@ -280,20 +283,20 @@ namespace qi { namespace py {
     {
       {
         //is that a qi::AnyObject?
-        boost::python::extract<PyQiObject*> isthatyoumum(obj);
+        boost::python::extract<PyQiObject&> isthatyoumum(obj);
 
         if (isthatyoumum.check()) {
           qiLogDebug() << "This PyObject is already a qi::AnyObject. Just returning it.";
-          return isthatyoumum()->object();
+          return isthatyoumum().object();
         }
       }
       {
         //is that a qi::Future?
-        boost::python::extract<PyFuture*> isthatyoumum(obj);
+        boost::python::extract<PyFuture&> isthatyoumum(obj);
 
         if (isthatyoumum.check()) {
           qiLogDebug() << "This PyObject is a Future. Making a qi::Object from it.";
-          return qi::AnyObject(boost::make_shared<qi::Future<qi::AnyValue> >(*isthatyoumum()));
+          return qi::AnyObject(boost::make_shared<qi::Future<qi::AnyValue> >(isthatyoumum()));
         }
       }
 
@@ -370,12 +373,14 @@ namespace qi { namespace py {
 
     void export_pyobject() {
       boost::python::class_<qi::py::PyQiObject>("Object", boost::python::no_init)
-          .def("__eq__", &PyQiObject::operator==)
-          .def("__ne__", &PyQiObject::operator!=)
-          .def("__lt__", &PyQiObject::operator<)
-          .def("__le__", &PyQiObject::operator<=)
-          .def("__gt__", &PyQiObject::operator>)
-          .def("__ge__", &PyQiObject::operator>=)
+          .def("__eq__",   &PyQiObject::operator==)
+          .def("__ne__",   &PyQiObject::operator!=)
+          .def("__lt__",   &PyQiObject::operator<)
+          .def("__le__",   &PyQiObject::operator<=)
+          .def("__gt__",   &PyQiObject::operator>)
+          .def("__ge__",   &PyQiObject::operator>=)
+          .def("__bool__", &PyQiObject::isValid)
+          .def("isValid",  &PyQiObject::isValid)
           .def("call", boost::python::raw_function(&pyParamShrinker<PyQiObject>, 1))
           .def("async", boost::python::raw_function(&pyParamShrinkerAsync<PyQiObject>, 1))
           //TODO: .def("post")

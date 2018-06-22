@@ -187,7 +187,7 @@ namespace qi {
       if (strand)
       {
         GILScopedUnlock _unlock;
-        fut = this->then(strand->schedulerFor(boost::bind(&pyFutureThen, _1, obj)));
+        fut = this->then(strand->schedulerFor(boost::bind(&pyFutureThen, _1, obj))).unwrap();
       }
       else
       {
@@ -210,7 +210,7 @@ namespace qi {
       if (strand)
       {
         GILScopedUnlock _unlock;
-        fut = this->andThen(strand->schedulerFor(boost::bind(&pyFutureAndThen, _1, obj)));
+        fut = this->andThen(strand->schedulerFor(boost::bind(&pyFutureAndThen, _1, obj))).unwrap();
       }
       else
       {

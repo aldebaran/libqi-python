@@ -32,8 +32,8 @@ def test_signal():
     assert test_signal.gotval == 42
 
 @pytest.fixture()
-def property_service_fixture()
-    def run_property_service_fixture(signature)
+def property_service_fixture():
+    def run_property_service_fixture(signature):
         class PropObj:
             def __init__(self):
                 self.prop = qi.Property(signature)
@@ -45,7 +45,7 @@ def property_service_fixture()
               self.clientSess = clientSess
               self.clientObj = clientObj
 
-            def assert_both_sides_eq(val):
+            def assert_both_sides_eq(self, val):
               if val is None:
                 assert self.servObj.prop.value() is None
                 assert self.clientObj.prop.value() is None
@@ -59,10 +59,10 @@ def property_service_fixture()
         servSess.registerService('Serv', servObj)
 
         clientSess = qi.Session()
-        clientSess.connect(s1.url())
-        clientObj = s2.service('Serv')
+        clientSess.connect(servSess.url())
+        clientObj = clientSess.service('Serv')
         return PropServiceFixture(servSess, servObj, clientSess, clientObj)
-  return run_property_service
+    return run_property_service_fixture
 
 def test_remote_property(property_service_fixture):
     fixture = property_service_fixture('s')
@@ -90,13 +90,32 @@ def test_remote_property(property_service_fixture):
     time.sleep(0.05)
     assert test_remote_property.gotval == "hahahaha"
 
-def test_optional_int():
-    prop = qi.Property('+i')
-    assert prop.value() is None
-    prop.setValue(42)
-    assert prop.value() == 42
-    prop.setValue(None)
-    assert prop.value() is None
+@pytest.mark.parametrize("signature, value",
+                         [('i', -42),
+                          ('+i', -42),
+                          ('I', 42),
+                          ('+I', 42),
+                          ('l', -42),
+                          ('+l', -42),
+                          ('L', 42),
+                          ('+L', 42),
+                          ('f', 3.14),
+                          ('+f', 3.14),
+                          ('d', 3.14),
+                          ('+d', 3.14),
+                          ('[i]', [4, 2]),
+                          ('+[i]', [4, 2]),
+                          ('{si}', {"a": 4, "b": 2}),
+                          ('+{si}', {"a": 4, "b": 2}),
+                          ('(ii)', (4, 2)),
+                          ('+(ii)', (4, 2))])
+def test_optional_set_value(signature, value):
+    prop = qi.Property(signature)
+    prop.setValue(value)
+    actual = prop.value()
+    def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
+        return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
+    assert actual == value or isclose(actual, value, rel_tol=1e-6)
 
 def test_non_optional_cannot_be_none():
     prop = qi.Property('i')

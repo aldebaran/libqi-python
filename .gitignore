@@ -5,3 +5,5 @@ build*
 CMakeLists.txt.user
 *.suo
 *.egg-info
+.pytest_cache
+.cache

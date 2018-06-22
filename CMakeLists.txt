@@ -34,6 +34,15 @@ if (QI_WITH_TESTS AND WITH_PYTHON AND NOT WIN32 AND NOT APPLE)
   # note: surprisingly, the /usr/local/... is needed when pytest in
   # installed under /usr/local.
   qi_add_test(test_run_pytest ${_PYTEST_EXECUTABLE}
+      ARGUMENTS "-k" "not return_empty_object"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/qi/test"
+      ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}:${QI_SDK_DIR}/lib/python2.7/site-packages:/usr/local/lib/python2.7/dist-packages:$ENV{PYTHONPATH};QI_ADDITIONAL_SDK_PREFIXES=${QI_SDK_DIR}")
+
+  qi_add_test(test_run_pytest_return_empty_object ${_PYTEST_EXECUTABLE}
+      ARGUMENTS
+        "${CMAKE_CURRENT_SOURCE_DIR}/qi/test/test_return_empty_object.py"
+        "--exec_path"
+        "${CMAKE_CURRENT_BINARY_DIR}/sdk/bin/service_object_holder --qi-standalone --qi-listen-url tcp://127.0.0.1:0"
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/qi/test"
       ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}:${QI_SDK_DIR}/lib/python2.7/site-packages:/usr/local/lib/python2.7/dist-packages:$ENV{PYTHONPATH};QI_ADDITIONAL_SDK_PREFIXES=${QI_SDK_DIR}")
 endif()
