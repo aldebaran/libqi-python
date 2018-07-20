@@ -38,20 +38,18 @@
     "win-amd64": {
         "_qi.pyd": "win/_qi.pyd",
         "qi.dll": "win/qi.dll",
-        "qi_d.dll": "win/qi_d.dll",
         "qipython.dll": "win/qipython.dll",
-        "qipython_d.dll": "win/qipython_d.dll",
         "ssleay32.dll": "win/ssleay32.dll",
         "libeay32.dll": "win/libeay32.dll",
         "vcruntime140.dll": "win/vcruntime140.dll",
-        "boost_chrono-vc140-mt-gd-1_64.dll": "win/boost_chrono-vc140-mt-gd-1_64.dll",
-        "boost_date_time-vc140-mt-gd-1_64.dll": "win/boost_date_time-vc140-mt-gd-1_64.dll",
-        "boost_filesystem-vc140-mt-gd-1_64.dll": "win/boost_filesystem-vc140-mt-gd-1_64.dll",
-        "boost_locale-vc140-mt-gd-1_64.dll": "win/boost_locale-vc140-mt-gd-1_64.dll",
-        "boost_program_options-vc140-mt-gd-1_64.dll": "win/boost_program_options-vc140-mt-gd-1_64.dll",
-        "boost_python-vc140-mt-gd-1_64.dll": "win/boost_python-vc140-mt-gd-1_64.dll",
-        "boost_regex-vc140-mt-gd-1_64.dll": "win/boost_regex-vc140-mt-gd-1_64.dll",
-        "boost_system-vc140-mt-gd-1_64.dll": "win/boost_system-vc140-mt-gd-1_64.dll",
-        "boost_thread-vc140-mt-gd-1_64.dll": "win/boost_thread-vc140-mt-gd-1_64.dll"
+        "boost_chrono-vc140-mt-1_64.dll": "win/boost_chrono-vc140-mt-1_64.dll",
+        "boost_date_time-vc140-mt-1_64.dll": "win/boost_date_time-vc140-mt-1_64.dll",
+        "boost_filesystem-vc140-mt-1_64.dll": "win/boost_filesystem-vc140-mt-1_64.dll",
+        "boost_locale-vc140-mt-1_64.dll": "win/boost_locale-vc140-mt-1_64.dll",
+        "boost_program_options-vc140-mt-1_64.dll": "win/boost_program_options-vc140-mt-1_64.dll",
+        "boost_python-vc140-mt-1_64.dll": "win/boost_python-vc140-mt-1_64.dll",
+        "boost_regex-vc140-mt-1_64.dll": "win/boost_regex-vc140-mt-1_64.dll",
+        "boost_system-vc140-mt-1_64.dll": "win/boost_system-vc140-mt-1_64.dll",
+        "boost_thread-vc140-mt-1_64.dll": "win/boost_thread-vc140-mt-1_64.dll"
     }
 }
