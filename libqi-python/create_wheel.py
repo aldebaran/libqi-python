@@ -143,11 +143,6 @@ def create_from_archive():
                 print("Unable to copy file %s" % file_path)
     # Build the Package
     sandbox.run_setup(os.path.join(PATH_HERE, "setup.py"), ["bdist_wheel"])
-    path_dist = os.path.join(PATH_HERE, "dist")
-    for filename in os.listdir(path_dist):
-        shutil.copy(os.path.join(path_dist, filename), os.path.join(build_folder, filename))
-    # Cleanup the Folder
-    folder_cleanup(PATH_HERE, names=CLEAN_NAMES, extensions=CLEAN_EXT)
     print("LibQi Python %s %s Created" % (build_platform, build_version))
 
 if __name__ == "__main__":
