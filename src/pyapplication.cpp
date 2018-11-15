@@ -211,7 +211,7 @@ namespace qi {
                "Start the connection of the session, once this function is called everything is fully initialized and working.")
           .def("atRun", &PyApplicationSession::atRun,
                "atRun()\n",
-               "Adds a callback that will be executed when run() is called")
+               "Add a callback that will be executed when run() is called")
           .add_property("url", &PyApplicationSession::url,
                         "url\n"
                         "The url given to the Application. It's the url used to connect the session")
