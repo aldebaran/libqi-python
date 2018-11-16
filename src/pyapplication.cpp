@@ -176,7 +176,7 @@ namespace qi {
           {
             safeCallable.object()();
           }
-          catch (boost::python::error_already_set&)
+          catch (const boost::python::error_already_set&)
           {
             throw std::runtime_error(PyFormatError());
           }
