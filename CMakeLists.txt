@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 2.8)
 project(libqi-python)
 find_package(qibuild)
 
+if(ANDROID)
+  return()
+endif()
+
 qi_sanitize_compile_flags(HIDDEN_SYMBOLS)
 qi_add_optional_package(PYTHON)
 qi_add_optional_package(PYTHON3)
