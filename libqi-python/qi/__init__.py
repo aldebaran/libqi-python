@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 """ QiMessaging Python bindings """
 from __future__ import absolute_import
+from __future__ import unicode_literals
+from __future__ import print_function
 
 import os
 import sys
@@ -9,21 +11,8 @@ import ctypes
 import platform
 import traceback
 
-PATH_LIBQI = os.path.dirname(os.path.realpath(__file__))
-
-# Add LibQi Python Folder to the Path
-sys.path.append(PATH_LIBQI)
-
-# Set Path and Load Dependancies for the Platform
-if "aldebaran" in platform.platform():
-    path_robot_lib = os.path.join(PATH_LIBQI, "robot")
-    sys.path.append(path_robot_lib)
-    current_lib_path = os.environ.get("LD_LIBRARY_PATH", "")
-    if current_lib_path:
-        current_lib_path += ":"
-    current_lib_path += ":" + path_robot_lib
-    os.environ["LD_LIBRARY_PATH"] = current_lib_path
-    robot_dependencies = [
+LOAD_DEPEDENCIES = {
+    "robot": [
         "libc.so.6",
         "libstdc++.so.6",
         "ld-linux.so.2",
@@ -47,22 +36,8 @@ if "aldebaran" in platform.platform():
         "libboost_thread.so.1.59.0",
         "libqi.so",
         "libqipython.so",
-    ]
-    for dependency in robot_dependencies:
-        library_path = os.path.join(PATH_LIBQI, "robot", dependency)
-        try:
-            ctypes.cdll.LoadLibrary(library_path)
-        except:
-            print("Unable to load %s\n%s" % (library_path, traceback.format_exc()))
-elif sys.platform.startswith("linux"):
-    path_linux_lib = os.path.join(PATH_LIBQI, "linux")
-    sys.path.append(path_linux_lib)
-    current_lib_path = os.environ.get("LD_LIBRARY_PATH", "")
-    if current_lib_path:
-        current_lib_path += ":"
-    current_lib_path += ":" + path_linux_lib
-    os.environ["LD_LIBRARY_PATH"] = current_lib_path
-    linux_dependencies = [
+    ],
+    "linux": [
         "libicudata.so.52",
         "libicuuc.so.52",
         "libicui18n.so.52",
@@ -80,24 +55,8 @@ elif sys.platform.startswith("linux"):
         "libboost_locale.so.1.59.0",
         "libqi.so",
         "libqipython.so",
-    ]
-    for dependency in linux_dependencies:
-        library_path = os.path.join(PATH_LIBQI, "linux", dependency)
-        try:
-            ctypes.cdll.LoadLibrary(library_path)
-        except:
-            print("Unable to load %s\n%s" % (library_path, traceback.format_exc()))
-elif sys.platform.startswith("darwin"):
-    path_mac_lib = os.path.join(PATH_LIBQI, "mac")
-    path_mac_qi = os.path.join(PATH_LIBQI, "mac", "python2.7", "site-packages")
-    sys.path.append(path_mac_lib)
-    sys.path.append(path_mac_qi)
-    current_lib_path = os.environ.get("DYLD_LIBRARY_PATH", "")
-    if current_lib_path:
-        current_lib_path += ":"
-    current_lib_path += ":" + path_mac_lib
-    os.environ["DYLD_LIBRARY_PATH"] = current_lib_path
-    mac_dependencies = [
+    ],
+    "mac": [
         "libcrypto.1.0.0.dylib",
         "libssl.1.0.0.dylib",
         "libboost_system.dylib",
@@ -112,16 +71,67 @@ elif sys.platform.startswith("darwin"):
         "libqi.dylib",
         "libqipython.dylib",
         "python2.7/site-packages/_qi.so",
-    ]
-    for dependency in mac_dependencies:
-        library_path = os.path.join(PATH_LIBQI, "mac", dependency)
+    ],
+    "win": [],
+}
+PATH_LIBQI_PYTHON = os.path.dirname(os.path.realpath(__file__))
+
+
+def check_in_path(envname, addpath):
+    """ Check that Path is in an Evironment Variable """
+    path_envname = os.environ.get(envname, "")
+    if addpath not in path_envname:
+        if path_envname:
+            path_envname += os.path.pathsep
+        path_envname += addpath
+        os.environ[envname] = path_envname
+
+
+def init_platform(name):
+    """ Initialize LibQi Python for a Platform and return the Libraries Path """
+    # Add LibQi Python to the Path if needed
+    if PATH_LIBQI_PYTHON not in sys.path:
+        sys.path.append(PATH_LIBQI_PYTHON)
+    # Deduce the Platform Path
+    platform_path = os.path.join(PATH_LIBQI_PYTHON, name)
+    # Add it to the PATH if not present
+    if platform_path not in sys.path:
+        sys.path.append(platform_path)
+    # Update QI_ADDITIONAL_SDK_PREFIXES if needed
+    check_in_path("QI_ADDITIONAL_SDK_PREFIXES", platform_path)
+    # Add the QiCore Path to QI_ADDITIONAL_SDK_PREFIXES
+    path_qicore = os.path.join(PATH_LIBQI_PYTHON, "..", "qicore", name)
+    check_in_path("QI_ADDITIONAL_SDK_PREFIXES", path_qicore)
+    # Add the QiGeometry Path to QI_ADDITIONAL_SDK_PREFIXES
+    path_qigeometry = os.path.join(PATH_LIBQI_PYTHON, "..", "qigeometry", name)
+    check_in_path("QI_ADDITIONAL_SDK_PREFIXES", path_qigeometry)
+    # Load the Platform Dependencies
+    for library in LOAD_DEPEDENCIES.get(name, []):
+        library_path = os.path.join(platform_path, library)
         try:
             ctypes.cdll.LoadLibrary(library_path)
         except:
             print("Unable to load %s\n%s" % (library_path, traceback.format_exc()))
+    # Return the Platform Path for further Treatments
+    return platform_path
+
+
+# Launch Initialization for the Platform
+if "aldebaran" in platform.platform():
+    platform_path = init_platform("robot")
+    check_in_path("LD_LIBRARY_PATH", platform_path)
+elif sys.platform.startswith("linux"):
+    platform_path = init_platform("linux")
+    check_in_path("LD_LIBRARY_PATH", platform_path)
+elif sys.platform.startswith("darwin"):
+    platform_path = init_platform("mac")
+    check_in_path("DYLD_LIBRARY_PATH", platform_path)
+    path_package = os.path.join(platform_path, "python2.7", "site-packages")
+    if path_package not in sys.path:
+        sys.path.append(path_package)
 elif sys.platform.startswith("win"):
-    sys.path.append(os.path.join(PATH_LIBQI, "win"))
-    ctypes.windll.kernel32.SetDllDirectoryA(os.path.join(PATH_LIBQI, "win"))
+    platform_path = init_platform("win")
+    ctypes.windll.kernel32.SetDllDirectoryA(platform_path)
 
 # Import LibQi Functionnalities
 from _qi import Application as _Application
