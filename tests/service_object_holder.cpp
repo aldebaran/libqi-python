@@ -1,8 +1,3 @@
-/*
-**  Copyright (C) 2018 SoftBank Robotics Europe
-**  See COPYING for the license
-*/
-
 #include <qi/anyobject.hpp>
 #include <qi/applicationsession.hpp>
 #include <ka/errorhandling.hpp>

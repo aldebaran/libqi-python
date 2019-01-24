@@ -8,6 +8,7 @@
 .pytest_cache
 .cache
 build-*
+*.user
 libqi-python/lib/**
 libqi-python/build/**
 libqi-python/share/**

@@ -2,17 +2,22 @@
 **  Copyright (C) 2013 Aldebaran Robotics
 **  See COPYING for the license
 */
+
 #include <boost/python.hpp>
-#include <qipython/pyapplication.hpp>
+#include <boost/thread.hpp>
+
+#include <qi/applicationsession.hpp>
+#include <qi/atomic.hpp>
 #include <qi/os.hpp>
 #include <qi/log.hpp>
-#include <qi/applicationsession.hpp>
-#include <qipython/gil.hpp>
-#include <boost/thread.hpp>
-#include <qi/atomic.hpp>
-#include <qipython/pysession.hpp>
 
-qiLogCategory("qimpy");
+#include <qipython/error.hpp>
+#include <qipython/gil.hpp>
+#include <qipython/pyapplication.hpp>
+#include <qipython/pysession.hpp>
+#include <qipython/pythreadsafeobject.hpp>
+
+qiLogCategory("qipy.application");
 
 namespace qi {
   namespace py {
@@ -156,6 +161,32 @@ namespace qi {
         return boost::python::object(_app->url().str());
       }
 
+
+      void atRun(boost::python::object callable)
+      {
+        if (!PyCallable_Check(callable.ptr()))
+          throw std::runtime_error("qi.Application.atRun requires a callable argument");
+
+        PyThreadSafeObject safeCallable(callable);
+
+        auto callback = [safeCallable]
+        {
+          GILScopedLock _lock;
+          try
+          {
+            safeCallable.object()();
+          }
+          catch (boost::python::error_already_set&)
+          {
+            throw std::runtime_error(PyFormatError());
+          }
+        };
+
+        GILScopedUnlock _unlock;
+        _app->atRun(std::move(callback));
+      }
+
+
       void start() {
         qi::py::GILScopedUnlock _unlock;
         _app->startSession();
@@ -178,6 +209,9 @@ namespace qi {
           .def("start", &PyApplicationSession::start,
                "start()\n"
                "Start the connection of the session, once this function is called everything is fully initialized and working.")
+          .def("atRun", &PyApplicationSession::atRun,
+               "atRun()\n",
+               "Add a callback that will be executed when run() is called")
           .add_property("url", &PyApplicationSession::url,
                         "url\n"
                         "The url given to the Application. It's the url used to connect the session")

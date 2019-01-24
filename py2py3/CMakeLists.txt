@@ -56,7 +56,7 @@ qi_create_lib(qipython${pyver} SHARED
   ${_sources}
 )
 
-qi_use_lib(qipython${pyver} BOOST_PYTHON${pyver} PYTHON${pyver} QI)
+qi_use_lib(qipython${pyver} ASSUME_SYSTEM_INCLUDE BOOST_PYTHON${pyver} PYTHON${pyver} QI)
 
 qi_stage_lib(qipython${pyver})
 

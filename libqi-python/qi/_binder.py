@@ -6,7 +6,7 @@ from __future__ import absolute_import
 
 import inspect
 
-from _type import AnyArguments
+from ._type import AnyArguments
 
 class bind(object):
     """ Allows specifying types and methodName for bound methods """
