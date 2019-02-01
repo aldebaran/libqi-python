@@ -10,6 +10,7 @@ import json
 import stat
 import shutil
 import platform
+import traceback
 
 from setuptools import sandbox
 
@@ -70,7 +71,7 @@ def folder_cleanup(folder, names=None, extensions=None):
                 try:
                     shutil.rmtree(dirpath, ignore_errors=False)
                     print("Removed Folder %s" % dirpath)
-                except:
+                except Exception:
                     print("Failed to remove Folder %s" % dirpath)
         for fname in files:
             fpath = os.path.join(dname, fname)
@@ -79,7 +80,7 @@ def folder_cleanup(folder, names=None, extensions=None):
                     try:
                         os.remove(fpath)
                         print("Removed File %s" % fpath)
-                    except:
+                    except Exception:
                         print("Failed to remove File %s" % fpath)
             fext = os.path.splitext(fname)[-1]
             if fext in extensions or fname in extensions:
@@ -87,7 +88,7 @@ def folder_cleanup(folder, names=None, extensions=None):
                     try:
                         os.remove(fpath)
                         print("Removed File by Ext %s" % fpath)
-                    except:
+                    except Exception:
                         print("Failed to remove File by Ext %s" % fpath)
 
 def create_from_archive():
@@ -96,7 +97,7 @@ def create_from_archive():
     build_platform = os.environ.get("QIPYTHON_BUILD_PLATFORM", platform.system())
     build_folder = os.environ.get("QIPYTHON_BUILD_FOLDER")
     if not build_folder:
-        build_folder = PATH_HERE
+        build_folder = os.path.join(PATH_HERE, "..")
     # Cleanup the Folder
     folder_cleanup(PATH_HERE, names=CLEAN_NAMES, extensions=CLEAN_EXT)
     # Set the Platform in Environment Variable
@@ -127,8 +128,13 @@ def create_from_archive():
     file_json.close()
     # Copy each File if present
     platform_files = list_files.get(build_platform)
+    remaining_files = platform_files.keys()
     for folder, _, files in os.walk(build_folder):
+        if not remaining_files:
+            break
         for filename in files:
+            if filename not in remaining_files:
+                continue
             file_path = os.path.join(folder, filename)
             if filename not in platform_files:
                 continue
@@ -137,10 +143,16 @@ def create_from_archive():
             if not os.path.isdir(folder_dest):
                 os.makedirs(folder_dest)
             try:
-                shutil.copyfile(file_path, path_dest)
+                shutil.copy(file_path, path_dest)
+                remaining_files.remove(filename)
                 print("File Copied to %s" % path_dest)
-            except:
+            except Exception:
                 print("Unable to copy file %s" % file_path)
+                traceback.print_exc()
+    if not remaining_files:
+        print("All Files Copied Successfully")
+    else:
+        raise RuntimeError("Some Files are missing:\n - %s" % "\n - ".join(remaining_files))
     # Build the Package
     sandbox.run_setup(os.path.join(PATH_HERE, "setup.py"), ["bdist_wheel"])
     print("LibQi Python %s %s Created" % (build_platform, build_version))
