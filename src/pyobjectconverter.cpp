@@ -175,17 +175,8 @@ struct ToPyObject
   void visitRaw(qi::AnyReference value)
   {
     /* TODO: zerocopy, sub-buffers... */
-    qi::Buffer& buf = value.as<qi::Buffer>();
-    if (buf.subBuffers().size() != 0)
-    {
-      qiLogError("pyobjectconverter") << "buffer has subbuffers, "
-                                      << "Python bytearray might be incomplete";
-    }
-
-    char* b = static_cast<char*>(malloc(buf.size()));
-    buf.read(b, 0, buf.size());
-    result = pyHandle(PyByteArray_FromStringAndSize(b, buf.size()));
-    free(b);
+    const auto dataWithSize = value.asRaw();
+    result = pyHandle(PyByteArray_FromStringAndSize(dataWithSize.first, dataWithSize.second));
   }
 
   void visitIterator(qi::AnyReference v)

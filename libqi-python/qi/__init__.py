@@ -40,9 +40,6 @@ LOAD_DEPEDENCIES = {
         "libicudata.so.52",
         "libicuuc.so.52",
         "libicui18n.so.52",
-        "libcrypto.so.1.0.0",
-        "libssl.so.1.0.0",
-        "libpython2.7.so.1.0",
         "libboost_system.so.1.59.0",
         "libboost_thread.so.1.59.0",
         "libboost_python.so.1.59.0",
@@ -98,12 +95,22 @@ def init_platform(name):
         sys.path.append(platform_path)
     # Update QI_ADDITIONAL_SDK_PREFIXES if needed
     check_in_path("QI_ADDITIONAL_SDK_PREFIXES", platform_path)
-    # Add the QiCore Path to QI_ADDITIONAL_SDK_PREFIXES
-    path_qicore = os.path.join(PATH_LIBQI_PYTHON, "..", "qicore", name)
-    check_in_path("QI_ADDITIONAL_SDK_PREFIXES", path_qicore)
-    # Add the QiGeometry Path to QI_ADDITIONAL_SDK_PREFIXES
-    path_qigeometry = os.path.join(PATH_LIBQI_PYTHON, "..", "qigeometry", name)
-    check_in_path("QI_ADDITIONAL_SDK_PREFIXES", path_qigeometry)
+    # Register QiCore
+    try:
+        import qicore
+        qicore.register()
+    except Exception:
+        # Add the QiCore Supposed Path to QI_ADDITIONAL_SDK_PREFIXES
+        path_qicore = os.path.join(PATH_LIBQI_PYTHON, "..", "qicore", name)
+        check_in_path("QI_ADDITIONAL_SDK_PREFIXES", path_qicore)
+    # Register QiGeometry
+    try:
+        import qigeometry
+        qigeometry.register()
+    except Exception:
+        # Add the QiGeometry Supposed Path to QI_ADDITIONAL_SDK_PREFIXES
+        path_qigeometry = os.path.join(PATH_LIBQI_PYTHON, "..", "qigeometry", name)
+        check_in_path("QI_ADDITIONAL_SDK_PREFIXES", path_qigeometry)
     # Load the Platform Dependencies
     for library in LOAD_DEPEDENCIES.get(name, []):
         library_path = os.path.join(platform_path, library)
