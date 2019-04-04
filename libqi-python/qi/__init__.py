@@ -194,7 +194,7 @@ def Application(args=None, raw=False, autoExit=True, url=None):
         if args is None:
             args = sys.argv
         if url is None:
-            url = "tcp://127.0.0.1:9559"
+            url = ''
         if not args:
             args = ['python']
         elif args[0] == '':
