@@ -19,8 +19,9 @@ def main():
       arguments given to the program. If the --qi-url is given to your program,
       the session will be connected to the given value later on. The same goes
       for --qi-listen-url option.
-      If no url are given the default adress to connect to will be
-      tcp://127.0.0.1:9559.
+      If no --qi-url is given, the default connect URL is tcp://127.0.0.1:9559.
+      If no --qi-listen-url is given, the default listen URL is
+      tcp://127.0.0.1:0.
       Note : The parsed options will removed from the given list by Application.
     """
 
