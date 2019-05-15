@@ -40,6 +40,7 @@ def load_libqipython():
             "libboost_regex.so",
             "libboost_locale.so",
             "libboost_signals.so",
+            "libboost_random.so",
             "libqi.so",
     ]
     relpaths = [
