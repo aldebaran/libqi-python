@@ -38,9 +38,9 @@ LOAD_DEPEDENCIES = {
         "libqipython.so",
     ],
     "linux": [
-        "libicudata.so.52",
-        "libicuuc.so.52",
-        "libicui18n.so.52",
+        "libicudata.so.55",
+        "libicuuc.so.55",
+        "libicui18n.so.55",
         "libboost_system.so.1.64.0",
         "libboost_thread.so.1.64.0",
         "libboost_python.so.1.64.0",
