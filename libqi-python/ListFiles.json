@@ -3,18 +3,19 @@
         "_qi.so": "linux/_qi.so",
         "libqipython.so": "linux/libqipython.so",
         "libqi.so": "linux/libqi.so",
-        "libicudata.so.52": "linux/libicudata.so.52",
-        "libicui18n.so.52": "linux/libicui18n.so.52",
-        "libicuuc.so.52": "linux/libicuuc.so.52",
-        "libboost_chrono.so.1.59.0": "linux/libboost_chrono.so.1.59.0",
-        "libboost_date_time.so.1.59.0": "linux/libboost_date_time.so.1.59.0",
-        "libboost_filesystem.so.1.59.0": "linux/libboost_filesystem.so.1.59.0",
-        "libboost_locale.so.1.59.0": "linux/libboost_locale.so.1.59.0",
-        "libboost_program_options.so.1.59.0": "linux/libboost_program_options.so.1.59.0",
-        "libboost_python.so.1.59.0": "linux/libboost_python.so.1.59.0",
-        "libboost_regex.so.1.59.0": "linux/libboost_regex.so.1.59.0",
-        "libboost_system.so.1.59.0": "linux/libboost_system.so.1.59.0",
-        "libboost_thread.so.1.59.0": "linux/libboost_thread.so.1.59.0"
+        "libicudata.so.55": "linux/libicudata.so.55",
+        "libicui18n.so.55": "linux/libicui18n.so.55",
+        "libicuuc.so.55": "linux/libicuuc.so.55",
+        "libboost_chrono.so.1.64.0": "linux/libboost_chrono.so.1.64.0",
+        "libboost_date_time.so.1.64.0": "linux/libboost_date_time.so.1.64.0",
+        "libboost_filesystem.so.1.64.0": "linux/libboost_filesystem.so.1.64.0",
+        "libboost_locale.so.1.64.0": "linux/libboost_locale.so.1.64.0",
+        "libboost_program_options.so.1.64.0": "linux/libboost_program_options.so.1.64.0",
+        "libboost_python.so.1.64.0": "linux/libboost_python.so.1.64.0",
+        "libboost_regex.so.1.64.0": "linux/libboost_regex.so.1.64.0",
+        "libboost_system.so.1.64.0": "linux/libboost_system.so.1.64.0",
+        "libboost_thread.so.1.64.0": "linux/libboost_thread.so.1.64.0",
+        "libboost_random.so.1.64.0": "linux/libboost_random.so.1.64.0"
     },
     "macosx-10.12-intel": {
         "_qi.so": "mac/python2.7/site-packages/_qi.so",
@@ -30,7 +31,8 @@
         "libboost_python.dylib": "mac/libboost_python.dylib",
         "libboost_regex.dylib": "mac/libboost_regex.dylib",
         "libboost_system.dylib": "mac/libboost_system.dylib",
-        "libboost_thread.dylib": "mac/libboost_thread.dylib"
+        "libboost_thread.dylib": "mac/libboost_thread.dylib",
+        "libboost_random.dylib": "mac/libboost_random.dylib"
     },
     "win-amd64": {
         "_qi.pyd": "win/_qi.pyd",
@@ -47,6 +49,7 @@
         "boost_python-vc140-mt-1_64.dll": "win/boost_python-vc140-mt-1_64.dll",
         "boost_regex-vc140-mt-1_64.dll": "win/boost_regex-vc140-mt-1_64.dll",
         "boost_system-vc140-mt-1_64.dll": "win/boost_system-vc140-mt-1_64.dll",
-        "boost_thread-vc140-mt-1_64.dll": "win/boost_thread-vc140-mt-1_64.dll"
+        "boost_thread-vc140-mt-1_64.dll": "win/boost_thread-vc140-mt-1_64.dll",
+        "boost_random-vc140-mt-1_64.dll": "win/boost_random-vc140-mt-1_64.dll"
     }
 }
