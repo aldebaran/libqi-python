@@ -127,14 +127,14 @@ namespace qi {
     class PyApplicationSession {
     public:
       PyApplicationSession(boost::python::list args, bool autoExit, const std::string& url) {
-        ArgumentConverter         ac(args);
-        ApplicationSessionOptions aso = qi::ApplicationSession::Option_None;
-
+        ArgumentConverter ac(args);
+        qi::ApplicationSession::Config config;
         if (!autoExit)
-          aso = qi::ApplicationSession::Option_NoAutoExit;
-
-        _app = boost::shared_ptr<qi::ApplicationSession>(new qi::ApplicationSession(ac.argc, ac.argv, aso, url));
-        //update args (some can have been removed by the AppSes ctor
+          config.setOption(qi::ApplicationSession::Option_NoAutoExit);
+        if (!url.empty())
+          config.setConnectUrl(url);
+        _app = boost::shared_ptr<qi::ApplicationSession>(new qi::ApplicationSession(ac.argc, ac.argv, config));
+        //update args (some can have been removed by the ApplicationSession ctor)
         ac.update(args);
         _ses = makePySession(_app->session());
       }

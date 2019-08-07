@@ -101,6 +101,7 @@ from ._type import ( Void, Bool,
                      Int64, UInt64,
                      Float, Double,
                      String, List,
+                     Optional,
                      Map, Struct,
                      Object, Dynamic,
                      Buffer, AnyArguments,
@@ -140,7 +141,7 @@ def Application(args=None, raw=False, autoExit=True, url=None):
         if args is None:
             args = sys.argv
         if url is None:
-            url = "tcp://127.0.0.1:9559"
+            url = ''
         if len(args) == 0:
             args = ['python']
         elif args[0] == '':
@@ -148,7 +149,7 @@ def Application(args=None, raw=False, autoExit=True, url=None):
         if raw:
             _app = _Application(args)
         else:
-            _app = _ApplicationSession(args, autoExit, url);
+            _app = _ApplicationSession(args, autoExit, url)
     else:
         raise Exception("Application was already initialized")
     return _app
@@ -168,7 +169,7 @@ __all__ = ["FutureState",
            "registerObjectFactory",
            "async",
            "Void", "Bool", "Int8", "UInt8", "Int16", "UInt16", "Int32", "UInt32", "Int64", "UInt64",
-           "Float", "Double", "String", "List", "Map", "Struct", "Object", "Dynamic", "Buffer", "AnyArguments",
+           "Float", "Double", "String", "List", "Optional", "Map", "Struct", "Object", "Dynamic", "Buffer", "AnyArguments",
            "typeof", "isinstance",
            "bind", "nobind", "singleThreaded", "multiThreaded",
            "fatal", "error", "warning", "info", "verbose",

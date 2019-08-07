@@ -99,6 +99,11 @@ class List(_Signature):
     def __init__(self, elementType):
         self.signature = "[%s]" % elementType.signature
 
+class Optional(_Signature):
+    """ Optional Type, a value type need to be specified  """
+    def __init__(self, valueType):
+        self.signature = "+%s" % valueType.signature
+
 class Map(_Signature):
     """ List Type, a key and an element type need to be specified """
     def __init__(self, keyType, elementType):
