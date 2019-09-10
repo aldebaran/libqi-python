@@ -40,7 +40,7 @@ namespace qi { namespace py {
     //use a shared_ptr to allow optional destruction of SignalBase (when not owned by us)
     class PySignal : boost::noncopyable {
     public:
-      explicit PySignal(const qi::Signature &signature = "m", const boost::python::object& onConnect = boost::python::object())
+      explicit PySignal(const qi::Signature &signature = "()", const boost::python::object& onConnect = boost::python::object())
         : _sig(new qi::SignalBase(signature, onConnect ? boost::bind(&pysignalOnSubscribe, PyThreadSafeObject(onConnect), _1) : qi::SignalBase::OnSubscribers()))
       {
         if (onConnect && !PyCallable_Check(onConnect.ptr()))

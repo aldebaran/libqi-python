@@ -20,15 +20,16 @@ elseif(WIN32)
   get_target_property(sdkpydir _qi${pyver} RUNTIME_OUTPUT_DIRECTORY_RELEASE)
 endif()
 
-qi_create_gtest(
+qi_create_gmock(
   test_python${pyver}_typepassing
 
   SRC
   "test_qipython.cpp"
   "test_module.cpp"
   "test_python_typepassing.cpp"
+  "test_signal.cpp"
 
   DEPENDS
-  QIPYTHON${pyver}
+  QIPYTHON${pyver} qitestutils
   ARGUMENTS "${sdkpydir}" "${CMAKE_CURRENT_SOURCE_DIR}/.." "${PYTHONHOME}"
 )
