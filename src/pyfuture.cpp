@@ -8,6 +8,8 @@
 #include <qipython/gil.hpp>
 #include <boost/python.hpp>
 #include <boost/foreach.hpp>
+#include <boost/function_types/components.hpp>
+#include <boost/function_types/function_pointer.hpp>
 #include <qipython/error.hpp>
 #include <qipython/pythreadsafeobject.hpp>
 #include "pystrand.hpp"
@@ -17,13 +19,13 @@ qiLogCategory("qipy.future");
 namespace qi {
   namespace py {
 
-    void onBarrierFinished(const std::vector<qi::Future<qi::AnyValue> >& futs, PyPromise prom)
+    void onBarrierFinished(const std::vector<qi::Future<qi::AnyValue> >& futs, Promise<AnyValue> prom)
     {
       GILScopedLock _lock;
       boost::python::list list;
       for (const auto& f : futs)
         list.append(boost::python::object(PyFuture(f)));
-      prom.setValue(list);
+      prom.setValue(AnyValue::from(list));
     }
 
     boost::python::object pyFutureBarrier(boost::python::list l)
@@ -38,10 +40,10 @@ namespace qi {
         futs.push_back(*ex());
       }
       auto fut = waitForAll(futs).async();
-      PyPromise prom;
+      Promise<AnyValue> prom;
       prom.setOnCancel(boost::bind(fut.makeCanceler()));
-      fut.then(boost::bind(&onBarrierFinished, _1, prom));
-      return boost::python::object(prom.future());
+      fut.andThen(boost::bind(&onBarrierFinished, _1, prom));
+      return boost::python::object(PyFuture(prom.future()));
     }
 
     void pyFutureCb(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable) {
@@ -102,12 +104,6 @@ namespace qi {
       }
     }
 
-    static void pyFutureCbProm(const PyThreadSafeObject &callable, PyPromise *pp) {
-      GILScopedLock _lock;
-      PY_CATCH_ERROR(callable.object()(pp));
-    }
-
-
     PyFuture::PyFuture()
     {}
 
@@ -129,26 +125,6 @@ namespace qi {
       return gv.to<boost::python::object>();
     }
 
-    std::string PyFuture::error(int msecs) const {
-      GILScopedUnlock _unlock;
-      return qi::Future<qi::AnyValue>::error(msecs);
-    }
-
-    FutureState PyFuture::wait(int msecs) const {
-      GILScopedUnlock _unlock;
-      return qi::Future<qi::AnyValue>::wait(msecs);
-    }
-
-    bool PyFuture::hasError(int msecs) const{
-      GILScopedUnlock _unlock;
-      return qi::Future<qi::AnyValue>::hasError(msecs);
-    }
-
-    bool PyFuture::hasValue(int msecs) const {
-      GILScopedUnlock _unlock;
-      return qi::Future<qi::AnyValue>::hasValue(msecs);
-    }
-
     void PyFuture::addCallback(const boost::python::object &callable) {
       if (!PyCallable_Check(callable.ptr()))
         throw std::runtime_error("Not a callable");
@@ -166,12 +142,6 @@ namespace qi {
         GILScopedUnlock _unlock;
         connect(boost::bind(&pyFutureCb, _1, obj));
       }
-    }
-
-    void PyFuture::cancel()
-    {
-      GILScopedUnlock _unlock;
-      qi::Future<qi::AnyValue>::cancel();
     }
 
     boost::python::object PyFuture::pyThen(
@@ -237,31 +207,46 @@ namespace qi {
       return boost::python::object(PyFuture(promise.future()));
     }
 
-    PyPromise::PyPromise()
+    namespace
     {
-    }
-
-    PyPromise::PyPromise(const qi::Promise<qi::AnyValue> &ref)
-      : qi::Promise<qi::AnyValue>(ref)
-    {
-    }
-
-    PyPromise::PyPromise(boost::python::object callable)
-      : qi::Promise<qi::AnyValue> (boost::bind<void>(&pyFutureCbProm, PyThreadSafeObject(callable), this))
-    {
-    }
-
-    void PyPromise::setValue(const boost::python::object &pyval) {
-      //TODO: remove the useless copy here.
-      qi::AnyValue gvr = qi::AnyValue::from(pyval);
+      template<typename Func>
+      struct AsFuncPtr
       {
-        GILScopedUnlock _unlock;
-        qi::Promise<qi::AnyValue>::setValue(gvr);
-      }
-    }
+        using MemberPtr = decltype(&Func::operator());
+        using Components =
+          typename boost::function_types::components<MemberPtr,
+                                                     boost::mpl::always<boost::mpl::void_>>::type;
+        using type = typename boost::function_types::function_pointer<
+          typename boost::mpl::remove<Components, boost::mpl::void_>::type>::type;
+      };
 
-    PyFuture PyPromise::future() {
-      return qi::Promise<qi::AnyValue>::future();
+      template<typename Func>
+      using AsFuncPtrType = typename AsFuncPtr<Func>::type;
+
+      /// Converts a function object with the appropriate cast (potentially user-defined) to a
+      /// function pointer.
+      // TODO: Replace uses of this when passing a lambda by the unary operator '+' when we don't
+      //       support VS2015 anymore.
+      template<class Func>
+      AsFuncPtrType<Func> asFuncPtr(Func func)
+      {
+        return static_cast<AsFuncPtrType<Func>>(func);
+      }
+
+      boost::shared_ptr<Promise<AnyValue>> makePromise(boost::python::object onCancel)
+      {
+        boost::function<void(Promise<AnyValue>&)> callback;
+        if (!onCancel.is_none())
+        {
+          PyThreadSafeObject tsOnCancel(onCancel);
+          callback = [=](Promise<AnyValue>& prom){
+            GILScopedLock lock;
+            PY_CATCH_ERROR(tsOnCancel.object()(&prom))
+          };
+        }
+
+        return boost::make_shared<Promise<AnyValue>>(std::move(callback));
+      }
     }
 
     void export_pyfuture() {
@@ -278,26 +263,56 @@ namespace qi {
           .value("Infinite", qi::FutureTimeout_Infinite);
 
 
-      boost::python::class_<PyPromise>("Promise")
-          .def(boost::python::init<boost::python::object>())
+      boost::python::class_<Promise<AnyValue>>("Promise", boost::python::no_init)
+          .def("__init__",
+               boost::python::make_constructor(
+                 makePromise,
+                 boost::python::default_call_policies(),
+                 (boost::python::arg("on_cancel") = boost::python::object())
+               ),
+               "__init__(on_cancel)\n"
+               ":param on_cancel: a function that will be called when a cancel is requested on"
+               " the future.\n"
+               )
 
-          .def("setCanceled", &PyPromise::setCanceled,
+          .def("setCanceled",
+               asFuncPtr([](Promise<AnyValue>& prom) {
+                 GILScopedUnlock unlock;
+                 return prom.setCanceled();
+               }),
                "setCanceled() -> None\n"
                "Set the state of the promise to Canceled")
 
-          .def("setError", &PyPromise::setError,
+          .def("setError",
+               asFuncPtr([](Promise<AnyValue>& prom, const std::string& err) {
+                 GILScopedUnlock unlock;
+                 return prom.setError(err);
+               }),
                "setError(error) -> None\n"
                "Set the error of the promise")
 
-          .def("setValue", &PyPromise::setValue,
+
+          .def("setValue",
+               asFuncPtr([](Promise<AnyValue>& prom, const boost::python::object& value) {
+                 qi::AnyValue gvr = qi::AnyValue::from(value);
+                 GILScopedUnlock unlock;
+                 return prom.setValue(std::move(gvr));
+               }),
                "setValue(value) -> None\n"
                "Set the value of the promise")
 
-          .def("future", &PyPromise::future,
+          .def("future",
+               asFuncPtr([](Promise<AnyValue>& prom){
+                 return PyFuture(prom.future());
+               }),
                "future() -> qi.Future\n"
                "Get a qi.Future from the promise, you can get multiple from the same promise.")
 
-          .def("isCancelRequested", &PyPromise::isCancelRequested,
+          .def("isCancelRequested",
+               asFuncPtr([](Promise<AnyValue>& prom){
+                GILScopedUnlock unlock;
+                return prom.isCancelRequested();
+               }),
                "isCancelRequested() -> bool\n"
                "Return true if the future associated with the promise asked for cancelation");
 
@@ -312,7 +327,12 @@ namespace qi {
                "\n"
                "Block until the future is ready.")
 
-          .def("error", &PyFuture::error, (boost::python::args("timeout") = qi::FutureTimeout_Infinite),
+          .def("error",
+               asFuncPtr([](PyFuture& fut) {
+                 GILScopedUnlock unlock;
+                 return std::string(fut.error());
+               }),
+               (boost::python::arg("timeout") = qi::FutureTimeout_Infinite),
                "error(timeout) -> string\n"
                ":param timeout: a time in milliseconds. Optional.\n"
                ":return: the error of the future.\n"
@@ -320,14 +340,24 @@ namespace qi {
                "\n"
                "Block until the future is ready.")
 
-          .def("wait", &PyFuture::wait, (boost::python::args("timeout") = qi::FutureTimeout_Infinite),
+          .def("wait",
+               asFuncPtr([](PyFuture& fut, int timeout) {
+                 GILScopedUnlock unlock;
+                 return fut.wait(timeout);
+               }),
+               (boost::python::arg("timeout") = qi::FutureTimeout_Infinite),
                "wait(timeout) -> qi.FutureState\n"
                ":param timeout: a time in milliseconds. Optional.\n"
                ":return: a :py:data:`qi.FutureState`.\n"
                "\n"
-               "Wait for the future to be ready." )
+               "Wait for the future to be ready.")
 
-          .def("hasError", &PyFuture::hasError, (boost::python::args("timeout") = qi::FutureTimeout_Infinite),
+          .def("hasError",
+               asFuncPtr([](PyFuture& fut, int timeout) {
+                 GILScopedUnlock unlock;
+                 return fut.hasError(timeout);
+               }),
+               (boost::python::arg("timeout") = qi::FutureTimeout_Infinite),
                "hasError(timeout) -> bool\n"
                ":param timeout: a time in milliseconds. Optional.\n"
                ":return: true if the future has an error.\n"
@@ -335,7 +365,12 @@ namespace qi {
                "\n"
                "Return true or false depending on the future having an error.")
 
-          .def("hasValue", &PyFuture::hasValue, (boost::python::args("timeout") = qi::FutureTimeout_Infinite),
+          .def("hasValue",
+               asFuncPtr([](PyFuture& fut, int timeout) {
+                 GILScopedUnlock unlock;
+                 return fut.hasValue(timeout);
+               }),
+               (boost::python::arg("timeout") = qi::FutureTimeout_Infinite),
                "hasValue(timeout) -> bool\n"
                ":param timeout: a time in milliseconds. Optional.\n"
                ":return: true if the future has a value.\n"
@@ -343,19 +378,35 @@ namespace qi {
                "\n"
                "Return true or false depending on the future having a value.")
 
-          .def("cancel", &PyFuture::cancel,
+          .def("cancel",
+               asFuncPtr([](PyFuture& fut) {
+                 GILScopedUnlock unlock;
+                 return fut.cancel();
+               }),
                "cancel() -> None\n"
                "Ask for cancelation.")
 
-          .def("isFinished", &PyFuture::isFinished,
+          .def("isFinished",
+               asFuncPtr([](PyFuture& fut) {
+                 GILScopedUnlock unlock;
+                 return fut.isFinished();
+               }),
                "isFinished() -> bool\n"
                ":return: true if the future is not running anymore (if hasError or hasValue or isCanceled).")
 
-          .def("isRunning", &PyFuture::isRunning,
+          .def("isRunning",
+               asFuncPtr([](PyFuture& fut) {
+                 GILScopedUnlock unlock;
+                 return fut.isRunning();
+               }),
                "isRunning() -> bool\n"
                ":return: true if the future is still running.\n")
 
-          .def("isCanceled", &PyFuture::isCanceled,
+          .def("isCanceled",
+               asFuncPtr([](PyFuture& fut) {
+                 GILScopedUnlock unlock;
+                 return fut.isCanceled();
+               }),
                "isCanceled() -> bool\n"
                ":return: true if the future is canceled.\n")
 

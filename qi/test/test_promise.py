@@ -8,8 +8,11 @@
 
 import time
 import threading
+import pytest
 
-from qi import Promise, PromiseNoop, Future, futureBarrier
+from qi import Promise, PromiseNoop, Future, futureBarrier, async
+
+pytest_plugins = ("timeout",)
 
 def waiterSetValue(promise, waiter):
     #time.sleep(t)
@@ -410,6 +413,21 @@ def test_future_barrier_cancel():
     assert futs[0].value() == 0
     assert futs[1].isCanceled()
 
+@pytest.mark.timeout(5)
+def test_promise_concurrent_setvalue_setcanceled():
+    delay_in_sec = 0.01
+    delay_in_microsec = int(1e6 * delay_in_sec)
+    for _ in range(100):
+        promise = Promise()
+        # this seemingly does nothing but greatly increases chances of lock:
+        promise.future().addCallback(lambda fut: None)
+        async(promise.setValue, None, delay=delay_in_microsec)
+        time.sleep(delay_in_sec)
+        try:
+            promise.setCanceled()
+        except RuntimeError:
+            pass
+
 def main():
     test_many_futures_create()
     test_future_wait()
@@ -429,6 +447,7 @@ def main():
     #test_many_callback_threaded()
     test_future_barrier()
     test_future_barrier_cancel()
+    test_promise_concurrent_setvalue_setcanceled()
 
 if __name__ == "__main__":
     main()

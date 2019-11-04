@@ -22,47 +22,29 @@
 namespace qi {
   namespace py {
 
-    class PyPromise;
     class PyThreadSafeObject;
 
     class PyFuture : public qi::Future<qi::AnyValue> {
-      friend class PyPromise;
       friend class PyFutureBarrier;
       friend void pyFutureCb(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable);
       friend qi::AnyValue pyFutureThen(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable);
-      friend void onBarrierFinished(const std::vector<qi::Future<qi::AnyValue> >& futs, PyPromise prom);
+      friend void onBarrierFinished(const std::vector<qi::Future<qi::AnyValue> >& futs, Promise<AnyValue> prom);
 
     public:
       PyFuture();
       PyFuture(const boost::python::object& obj);
       PyFuture(const qi::Future<qi::AnyValue>& fut);
       boost::python::object value(int msecs = qi::FutureTimeout_Infinite) const;
-      std::string error(int msecs = qi::FutureTimeout_Infinite) const;
       void addCallback(const boost::python::object &callable);
       boost::python::object pyThen(const boost::python::object& callable);
       boost::python::object pyAndThen(const boost::python::object& callable);
       boost::python::object unwrap();
-      FutureState wait(int msecs) const;
-      bool        hasError(int msecs) const;
-      bool        hasValue(int msecs) const;
-      void        cancel();
     };
-
-
-    class PyPromise: public qi::Promise<qi::AnyValue> {
-    public:
-      PyPromise();
-      PyPromise(const qi::Promise<qi::AnyValue> &ref);
-      PyPromise(boost::python::object callable);
-      void setValue(const boost::python::object &pyval);
-      PyFuture future();
-    };
-
 
     //convert from Future to PyFuture
     template <typename T>
     PyFuture toPyFuture(qi::Future<T> fut) {
-      PyPromise gprom;
+      Promise<AnyValue> gprom;
       qi::adaptFuture(fut, gprom);
       return gprom.future();
     }
