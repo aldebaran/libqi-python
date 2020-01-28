@@ -3,13 +3,16 @@ import qi
 import subprocess
 import itertools
 
-@pytest.fixture
-def session(request, url):
+def make_session(request, url):
   """ Connected session to a URL. """
   sess = qi.Session()
   sess.connect(url)
   request.addfinalizer(sess.close)
   return sess
+
+@pytest.fixture
+def session(request, url):
+  return make_session(request, url)
 
 @pytest.fixture
 def process(request, exec_path):
@@ -40,7 +43,7 @@ def process_service_endpoint(process):
 @pytest.fixture
 def session_to_process_service_endpoint(request, process_service_endpoint):
   service_name, service_endpoint = process_service_endpoint
-  return service_name, session(request, service_endpoint)
+  return service_name, make_session(request, service_endpoint)
 
 def pytest_addoption(parser):
   parser.addoption('--url', action='append', type=str, default=[],

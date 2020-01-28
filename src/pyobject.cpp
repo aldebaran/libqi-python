@@ -276,8 +276,44 @@ namespace qi { namespace py {
       return ObjectThreadingModel_SingleThread;
     }
 
-    static void deletenoop(qi::Strand*)
-    {}
+    namespace
+    {
+      void deleteNoOp(qi::Strand*)
+      {
+      }
+
+      constexpr const auto qiObjectUidName = "__qi_objectuid__";
+
+      // Precondition: The GIL is locked.
+      boost::optional<ObjectUid> readObjectUid(const boost::python::object& obj)
+      {
+        auto qiObjectUid = boost::python::getattr(obj, qiObjectUidName, {});
+        if (qiObjectUid)
+        {
+          boost::python::extract<std::string> extractor{ qiObjectUid };
+          if (extractor.check())
+          {
+            const auto uidStr = extractor();
+            const auto uid = qi::deserializeObjectUid(uidStr).value();
+            return uid;
+          }
+          else
+          {
+            qiLogError() << "Failed to read the ObjectUid value stored in python object attribute '"
+                         << qiObjectUidName << "'.";
+          }
+        }
+        return {};
+      }
+
+      // Precondition: The GIL is locked.
+      void writeObjectUid(boost::python::object obj, const qi::ObjectUid& uid)
+      {
+        const auto uidStr = serializeObjectUid<std::string>(uid);
+        boost::python::setattr(obj, qiObjectUidName, boost::python::object(uidStr));
+      }
+    } // namespace
+
 
     qi::AnyObject makeQiAnyObject(boost::python::object obj)
     {
@@ -359,14 +395,32 @@ namespace qi { namespace py {
           continue;
         }
       }
+
+      // If we find an ObjectUid in the python object, reuse it.
+      auto maybeObjectUid = readObjectUid(obj);
+      if (maybeObjectUid)
+      {
+        // This object already has an ObjectUid: reuse it.
+        gob.setOptionalUid(maybeObjectUid);
+      }
+
       //this is a useless callback, needed to keep a ref on obj.
       //when the GO is destructed, the ref is released.
       //doNothing use PyThreadSafeObject to lock the GIL as needed
       qi::AnyObject anyobj = gob.object(boost::bind<void>(&doNothing, _1, obj));
 
+      // If there was no ObjectUid stored in the python object, store a new one.
+      if (!maybeObjectUid)
+      { // First time we make an AnyObject for this python object: store the new ObjectUid in it.
+        writeObjectUid(obj, anyobj.uid());
+      }
+
+      // At this point both the AnyObject and the related python object have the same ObjectUid value.
+      QI_ASSERT_TRUE(anyobj.uid() == readObjectUid(obj));
+
       if (qi::Strand* strand = extractStrandFromObject(obj))
         // no need to keep the strand alive because the anyobject is already doing that
-        anyobj.forceExecutionContext(boost::shared_ptr<qi::Strand>(strand, deletenoop));
+        anyobj.forceExecutionContext(boost::shared_ptr<qi::Strand>(strand, deleteNoOp));
 
       return anyobj;
     }
