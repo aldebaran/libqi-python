@@ -45,7 +45,7 @@ namespace qi { namespace py {
 
       qi::Future<qi::AnyValue> fut;
       qi::Promise<qi::AnyValue> res;
-      PyPromise pyprom(res);
+      Promise<AnyValue> prom(res);
       {
         //calling c++, so release the GIL.
         GILScopedUnlock _unlock;
@@ -56,7 +56,7 @@ namespace qi { namespace py {
         if (!async)
           return res.future().value().to<boost::python::object>();
       }
-      return boost::python::object(pyprom.future());
+      return boost::python::object(PyFuture(prom.future()));
     }
 
     boost::python::object importInspect() {
