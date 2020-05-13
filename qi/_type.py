@@ -1,21 +1,18 @@
-##
-## Author(s):
-##  - Cedric GESTES <gestes@aldebaran-robotics.com>
-##
-## Copyright (C) 2010 - 2013 Aldebaran Robotics
-##
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+""" QiMessaging Python bindings """
+from __future__ import absolute_import
+# from __future__ import unicode_literals
 
 import _qi
-import types
 
-#allow print str(Void)
 class _MetaSignature(type):
+    """ MetaSignature """
     def __str__(self):
         return self.signature
     def __unicode__(self):
         return self.signature
-
-    #support comparing class and instance (Int8 == Int8())
+    # Support comparing class and instance (Int8 == Int8())
     def __eq__(self, other):
         if isinstance(other, str):
             return other == self.signature
@@ -25,7 +22,7 @@ class _MetaSignature(type):
             return other != self.signature
         return other.signature != self.signature
 
-#this syntax works for defining metaclass in python2 and python3
+# This syntax works for defining metaclass in python2 and python3
 _ToInheritMetaSignature = _MetaSignature('_ToInheritMetaSignature', (object, ), {})
 
 class _Signature(_ToInheritMetaSignature):
@@ -33,7 +30,6 @@ class _Signature(_ToInheritMetaSignature):
         return self.signature
     def __unicode__(self):
         return self.signature
-
     def __eq__(self, other):
         if isinstance(other, str):
             return other == self.signature()
@@ -129,10 +125,10 @@ class Buffer(_Signature):
     __metaclass__ = _MetaSignature
     signature = 'r'
 
-#yes this look similar to Dynamic but it's not.
-#eg: qi.bind(Void, (Dynamic, Dynamic))  this mean a tuple of two dynamic.
-#eg: qi.bind(Void, AnyArguments)        this is not a tuple. (m not in tuple, mean anythings)
-#eg: qi.bind(Void, Dynamic)             this is a function with one argument
+# Yes this look similar to Dynamic but it's not.
+# eg: qi.bind(Void, (Dynamic, Dynamic))  this mean a tuple of two dynamic.
+# eg: qi.bind(Void, AnyArguments)        this is not a tuple. (m not in tuple, mean anythings)
+# eg: qi.bind(Void, Dynamic)             this is a function with one argument
 class AnyArguments(_Signature):
     """ Any Arguments Types. A function or a signal taking AnyArguments
         will accept all kind of arguments. AnyArguments is a list of AnyValue
@@ -140,11 +136,9 @@ class AnyArguments(_Signature):
     __metaclass__ = _MetaSignature
     signature = 'm'
 
-
-#return the qi.type of the parameter
+# Return the qi.type of the parameter
 def typeof(a):
     """ return the qi type of a variable
-
         .. warning::
            this function is only implemented for Object
     """
@@ -152,17 +146,16 @@ def typeof(a):
         return Object
     raise NotImplementedError("typeOf is only implemented for Object right now")
 
-#cant be called isinstance or typeof will run into infinite loop
-#see qi.__init__ for the renaming
+# Cant be called isinstance or typeof will run into infinite loop
+# See qi.__init__ for the renaming
 def _isinstance(a, type):
     """ return true if `a` is of type `type`
-
         .. warning::
            this function is only implemented for Object
     """
     if type != Object:
-      raise NotImplementedError("isinstance is only implemented for Object right now")
+        raise NotImplementedError("isinstance is only implemented for Object right now")
     try:
-      return typeof(a) == type
+        return typeof(a) == type
     except NotImplementedError:
-      return False
+        return False

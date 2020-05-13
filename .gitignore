@@ -3,11 +3,3 @@
 .pytest_cache
 .cache
 build-*
-libqi-python/setup.cfg
-libqi-python/qi/version.py
-libqi-python/dist
-libqi-python/build
-libqi-python/*.egg-info
-libqi-python/**/*.so
-libqi-python/**/*.dll
-libqi-python/**/*.pyd

@@ -23,7 +23,7 @@ CLEAN_NAMES = [
 ]
 CLEAN_EXT = [".pyc", ".dll", ".so", ".pyd", ".dylib"]
 SETUP_CFG = """[metadata]
-license_file = LICENSE.txt
+license_file = COPYING
 
 [bdist_wheel]
 python-tag = cp27
