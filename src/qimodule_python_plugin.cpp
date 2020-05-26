@@ -1,12 +1,23 @@
 /*
-** Author(s):
-**  - Cedric GESTES <cgestes@aldebaran.com>
-**
-** Copyright (C) 2014 Aldebaran
+**  Copyright (C) 2020 SoftBank Robotics Europe
+**  See COPYING for the license
 */
 
-#include <qipython/pymodule.hpp>
+#include <qi/anymodule.hpp>
+#include <qi/log.hpp>
 
+qiLogCategory("qi.python.module");
 
-QI_REGISTER_MODULE_FACTORY_PLUGIN("python", &qi::py::importPyModule);
+namespace
+{
 
+// Python AnyModule Factory
+qi::AnyModule importPyModule(const qi::ModuleInfo& /*name*/)
+{
+  qiLogInfo() << "import in python not implemented yet";
+  return qi::AnyModule();
+}
+
+} // namespace
+
+QI_REGISTER_MODULE_FACTORY_PLUGIN("python", &::importPyModule);

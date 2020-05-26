@@ -1,18 +1,21 @@
-#pragma once
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
 
-#ifndef _QIPYTHON_PYEXPORT_HPP_
-#define _QIPYTHON_PYEXPORT_HPP_
+#pragma once
 
-#include <qipython/api.hpp>
+#ifndef QIPYTHON_PYEXPORT_HPP
+#define QIPYTHON_PYEXPORT_HPP
 
-namespace qi {
-  namespace py {
-    QIPYTHON_API void export_all();
-  }
+#include <qipython/common.hpp>
+
+namespace qi
+{
+namespace py
+{
+  void exportAll(pybind11::module& module);
+}
 }
 
-#endif  // _QIPYTHON_PYEXPORT_HPP_
+#endif  // QIPYTHON_PYEXPORT_HPP

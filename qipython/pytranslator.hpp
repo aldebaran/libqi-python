@@ -1,27 +1,24 @@
-#pragma once
 /*
-**  Copyright (C) 2014 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
 
-#ifndef _PYTHON_SRC_PYTRANSLATOR_HPP_
-#define _PYTHON_SRC_PYTRANSLATOR_HPP_
+#pragma once
 
+#ifndef QIPYTHON_PYTRANSLATOR_HPP
+#define QIPYTHON_PYTRANSLATOR_HPP
+
+#include <qipython/common.hpp>
 #include <qi/translator.hpp>
 
-namespace qi {
-  namespace py {
-    class PyTranslator: public qi::Translator {
-      public:
-        PyTranslator(const std::string &name);
+namespace qi
+{
+namespace py
+{
 
-        std::string translate1(const std::string &msg);
-        std::string translate2(const std::string &msg, const std::string &domain);
-        std::string translate3(const std::string &msg, const std::string &domain, const std::string &locale);
-    };
+void exportTranslator(pybind11::module& module);
 
-    void export_pytranslator();
-  }
-}
+} // namespace py
+} // namespace qi
 
-#endif
+#endif // QIPYTHON_PYTRANSLATOR_HPP

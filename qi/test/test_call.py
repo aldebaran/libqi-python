@@ -1,18 +1,18 @@
-#!/usr/bin/env python2
-##
-## Author(s):
-##  - Cedric GESTES <gestes@aldebaran-robotics.com>
-##
-## Copyright (C) 2013 Aldebaran Robotics
+#
+# Copyright (C) 2010 - 2020 Softbank Robotics Europe
+#
+# -*- coding: utf-8 -*-
 
 import qi
 import time
 import threading
 import pytest
 
+
 def setValue(p, v):
     time.sleep(0.2)
     p.setValue(v)
+
 
 @qi.multiThreaded()
 class FooService:
@@ -56,14 +56,15 @@ class FooService:
 
     @qi.bind(qi.Int32)
     def bind_retfutint(self):
-        p = qi.Promise("(i)")
+        p = qi.Promise()
         t = threading.Thread(target=setValue, args=(p, 42, ))
         t.start()
         return p.future()
 
     def retfutmap(self):
         p = qi.Promise()
-        t = threading.Thread(target=setValue, args=(p, { 'titi' : 'toto', "foo" : "bar" },))
+        t = threading.Thread(target=setValue, args=(
+            p, {'titi': 'toto', "foo": "bar"},))
         t.start()
         return p.future()
 
@@ -81,6 +82,7 @@ class FooService:
 
 
 FooService.fooLambda = lambda self, x: x * 2
+
 
 @qi.multiThreaded()
 class Multi:
@@ -109,7 +111,7 @@ def docalls(sserver, sclient):
     try:
         s.hidden()
         assert False
-    except:
+    except Exception:
         pass
 
     print("bound methods")
@@ -124,7 +126,7 @@ def docalls(sserver, sclient):
     try:
         s.add("40", "2")
         assert False
-    except:
+    except Exception:
         pass
 
     print("test future")
@@ -138,17 +140,17 @@ def docalls(sserver, sclient):
     assert s.bind_retfutint(_async=True).value() == 42
 
     print("test future async")
-    assert qi.async(s.retfutint).value() == 42
+    assert qi.runAsync(s.retfutint).value() == 42
     print("test bound future async")
-    assert qi.async(s.bind_retfutint).value() == 42
+    assert qi.runAsync(s.bind_retfutint).value() == 42
 
     print("test future map")
-    assert s.retfutmap() == { 'titi' : 'toto', "foo" : "bar" }
+    assert s.retfutmap() == {'titi': 'toto', "foo": "bar"}
 
     print("test future map async")
     fut = s.retfutmap(_async=True)
-    assert fut.hasValue() == True
-    assert fut.value() == { 'titi' : 'toto', "foo" : "bar" }
+    assert fut.hasValue()
+    assert fut.value() == {'titi': 'toto', "foo": "bar"}
 
     print("test lambda")
     assert s.fooLambda(42) == 42 * 2
@@ -169,18 +171,20 @@ def docalls(sserver, sclient):
     assert f2.value() == 42
     assert f3.value() == 42
     end = time.time()
-    print (end-start)
+    print(end - start)
     assert end - start < 0.15
+
 
 def test_calldirect():
     ses = qi.Session()
     ses.listenStandalone("tcp://127.0.0.1:0")
-    #MODE DIRECT
+    # MODE DIRECT
     print("## DIRECT MODE")
     try:
         docalls(ses, ses)
     finally:
         ses.close()
+
 
 def test_callsd():
     sd = qi.Session()
@@ -188,7 +192,7 @@ def test_callsd():
         sd.listenStandalone("tcp://127.0.0.1:0")
         local = sd.endpoints()[0]
 
-        #MODE NETWORK
+        # MODE NETWORK
         print("## NETWORK MODE")
         ses = qi.Session()
         ses2 = qi.Session()
@@ -203,10 +207,10 @@ def test_callsd():
         sd.close()
 
 
-
 class Invalid1:
     def titi():
         pass
+
 
 def test_missingself():
     sd = qi.Session()
@@ -224,10 +228,12 @@ def test_missingself():
         ses.close()
         sd.close()
 
+
 class Invalid2:
     @qi.bind(42)
     def titi(self, a):
         pass
+
 
 def test_badbind():
     sd = qi.Session()
@@ -245,10 +251,12 @@ def test_badbind():
         ses.close()
         sd.close()
 
+
 class Invalid3:
     @qi.bind(qi.Float, [42])
     def titi(self, a):
         pass
+
 
 def test_badbind2():
     sd = qi.Session()
@@ -266,22 +274,13 @@ def test_badbind2():
         ses.close()
         sd.close()
 
+
 def test_cancelcall():
     try:
         s = qi.Session()
         s.listenStandalone('tcp://127.0.0.1:0')
-        f = s.waitForService("my", _async = True)
+        f = s.waitForService("my", _async=True)
         f.cancel()
         f.wait()
     finally:
         s.close()
-
-def main():
-    test_calldirect()
-    test_callsd()
-    test_missingself()
-    test_badbind()
-    test_badbind2()
-
-if __name__ == "__main__":
-    main()

@@ -1,448 +1,453 @@
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
+
 #include <qipython/pyobject.hpp>
-#include <boost/python.hpp>
-#include <boost/python/raw_function.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qipython/pyfuture.hpp>
 #include <qipython/pysignal.hpp>
 #include <qipython/pyproperty.hpp>
-#include <qipython/error.hpp>
-#include <qipython/pythreadsafeobject.hpp>
+#include <qipython/pystrand.hpp>
 #include <qi/type/dynamicobjectbuilder.hpp>
-#include <qi/type/objecttypebuilder.hpp> //for TYPE_TEMPLATE(Future)
 #include <qi/jsoncodec.hpp>
 #include <qi/strand.hpp>
-#include <qipython/gil.hpp>
-
-#include "pystrand.hpp"
-#include "pyobject_p.hpp"
-
-qiLogCategory("qipy.object");
-
-namespace qi { namespace py {
-
-    PyQiFunctor::~PyQiFunctor()
-    {
-        qi::py::GILScopedUnlock _lock;
-        _object.reset();
-    }
-
-    PyQiObject::~PyQiObject()
-    {
-        qi::py::GILScopedUnlock _lock;
-        _object.reset();
-    }
-
-    boost::python::object PyQiFunctor::operator()(boost::python::tuple pyargs, boost::python::dict pykwargs) {
-      qi::AnyValue val = qi::AnyValue::from(pyargs);
-      bool async = boost::python::extract<bool>(pykwargs.get("_async", false));
-      std::string funN = boost::python::extract<std::string>(pykwargs.get("_overload", _funName));
-      // TODO: make it so the message under does not need to be uncommented
-      //        qiLogDebug() << "calling a method: " << funN << " args:" << qi::encodeJSON(val);
-
-      qi::Future<qi::AnyValue> fut;
-      qi::Promise<qi::AnyValue> res;
-      Promise<AnyValue> prom(res);
-      {
-        //calling c++, so release the GIL.
-        GILScopedUnlock _unlock;
-        qi::Future<qi::AnyReference> fmeta = _object.metaCall(funN, val.content().asTupleValuePtr(), async ? MetaCallType_Queued : MetaCallType_Direct);
-        //because futureAdapter support AnyRef containing Future<T>  (that will be converted to a Future<T>
-        // instead of Future<Future<T>>
-        adaptFutureUnwrap(fmeta, res);
-        if (!async)
-          return res.future().value().to<boost::python::object>();
-      }
-      return boost::python::object(PyFuture(prom.future()));
-    }
-
-    boost::python::object importInspect() {
-      static bool plouf = false;
-      static boost::python::object& obj = *new boost::python::object;
-      if (!plouf) {
-        obj = boost::python::import("inspect");
-        plouf = true;
-      }
-      return obj;
-    }
-
-
-    void populateMethods(boost::python::object pyobj, qi::AnyObject obj) {
-      qi::MetaObject::MethodMap           mm = obj.metaObject().methodMap();
-      qi::MetaObject::MethodMap::iterator it;
-      for (it = mm.begin(); it != mm.end(); ++it) {
-        qi::MetaMethod &mem = it->second;
-        //drop special methods
-        if (mem.uid() < qiObjectSpecialMemberMaxUid)
-          continue;
-        qiLogDebug() << "adding method:" << mem.toString();
-        boost::python::object fun = boost::python::raw_function(PyQiFunctor(mem.name(), obj));
-        boost::python::api::setattr(pyobj, mem.name().c_str(), fun);
-        // Fill __doc__ with Signature and description
-        std::stringstream ssdocstring;
-        ssdocstring << "Signature: " << mem.returnSignature().toString() << "\n";
-        ssdocstring << mem.description();
-        boost::python::object docstring(ssdocstring.str());
-        boost::python::api::setattr(fun, "__doc__", docstring);
-      }
-    }
-
-    void populateSignals(boost::python::object pyobj, qi::AnyObject obj) {
-      qi::MetaObject::SignalMap           mm = obj.metaObject().signalMap();
-      qi::MetaObject::SignalMap::iterator it;
-      for (it = mm.begin(); it != mm.end(); ++it) {
-        qi::MetaSignal &ms = it->second;
-        //drop special methods
-        if (ms.uid() < qiObjectSpecialMemberMaxUid)
-          continue;
-        qiLogDebug() << "adding signal:" << ms.toString();
-        boost::python::object fun = qi::py::makePyProxySignal(obj, ms);
-        boost::python::api::setattr(pyobj, ms.name(), fun);
-      }
-    }
-
-    void populateProperties(boost::python::object pyobj, qi::AnyObject obj) {
-      qi::MetaObject::PropertyMap           mm = obj.metaObject().propertyMap();
-      qi::MetaObject::PropertyMap::iterator it;
-      for (it = mm.begin(); it != mm.end(); ++it) {
-        qi::MetaProperty &mp = it->second;
-        //drop special methods
-        if (mp.uid() < qiObjectSpecialMemberMaxUid)
-          continue;
-        qiLogDebug() << "adding property:" << mp.toString();
-        boost::python::object fun = qi::py::makePyProxyProperty(obj, mp);
-        boost::python::api::setattr(pyobj, mp.name().c_str(), fun);
-      }
-    }
-
-
-
-
-    boost::python::object makePyQiObject(qi::AnyObject obj, const std::string &name) {
-      if (!obj.isValid())
-        return boost::python::object{ qi::py::PyQiObject(obj) };
-
-      if (QI_TEMPLATE_TYPE_GET(obj.asGenericObject()->type, Future) ||
-          QI_TEMPLATE_TYPE_GET(obj.asGenericObject()->type, FutureSync))
-        return boost::python::object(PyFuture(obj.async<qi::AnyValue>("_getSelf")));
-
-      boost::python::object result { qi::py::PyQiObject(obj) };
-      qi::py::populateMethods(result, obj);
-      qi::py::populateSignals(result, obj);
-      qi::py::populateProperties(result, obj);
-      return result;
-    }
-
-
-    //TODO: DO NOT DUPLICATE
-    static qi::AnyReference pyCallMethod(const std::vector<qi::AnyReference>& cargs, PyThreadSafeObject tscallable) {
-      qi::AnyReference gvret;
-      try {
-        qi::py::GILScopedLock _lock;
-        boost::python::list   args;
-        boost::python::object ret;
-        boost::python::object callable = tscallable.object();
-
-        std::vector<qi::AnyReference>::const_iterator it = cargs.begin();
-        ++it; //drop the first arg which is DynamicObject*
-        for (; it != cargs.end(); ++it) {
-          qiLogDebug() << "argument: " << qi::encodeJSON(*it);
-          args.append(it->to<boost::python::object>());
-        }
-        qiLogDebug() << "before method call";
-        try {
-          ret = callable(*boost::python::tuple(args));
-        } catch (const boost::python::error_already_set &e) {
-          std::string err = PyFormatError();
-          qiLogDebug() << "call exception:" << err;
-          throw std::runtime_error(err);
-        }
-
-        //convert python future to future, to allow the middleware to make magic with it.
-        //serverresult will support async return value for call. (call returning future)
-        boost::python::extract< PyFuture* > extractor(ret);
-        if (extractor.check()) {
-          PyFuture* pfut = extractor();
-          if (pfut) { //pfut == 0, can mean ret is None.
-            qiLogDebug() << "Future detected";
-            qi::Future<qi::AnyValue> fut = *pfut;
-            return qi::AnyReference::from(fut).clone();
-          }
-        }
-
-        gvret = qi::AnyReference::from(ret).clone();
-        qiLogDebug() << "method returned:" << qi::encodeJSON(gvret);
-      } catch (const boost::python::error_already_set &e) {
-        qi::py::GILScopedLock _lock;
-        throw std::runtime_error("Python error: " + PyFormatError());
-      }
-      return gvret;
-    }
-
-    //callback just needed to keep a ref on obj
-    //Use PyThreadSafeObject to be GILSafe
-    static void doNothing(qi::GenericObject *go, PyThreadSafeObject obj)
-    {
-      (void)go;
-      (void)obj;
-    }
-
-    //get the signature for the function
-    //if vargs => return m
-    //else: return (m...m) with the good number of m
-    std::string generateDefaultParamSignature(const std::string &key, boost::python::object& argspec, bool isMeth)
-    {
-      //argspec[0] = args
-      int argsz = boost::python::len(argspec[0]);
-
-      //argspec[1] = name of vargs
-      if (argspec[1])
-      {
-        //m is accept everything
-        return "m";
-      }
-
-      if (argsz == 0 && isMeth) {
-        std::stringstream serr;
-        serr << "Method " << key << " is missing the self argument.";
-        throw std::runtime_error(serr.str());
-      }
-
-      //drop self on method
-      if (isMeth)
-        argsz = argsz - 1;
-
-      std::stringstream ss;
-
-      ss << "(";
-      for (int i = 0; i < argsz; ++i)
-        ss << "m";
-      ss << ")";
-      return ss.str();
-    }
-
-    void registerMethod(qi::DynamicObjectBuilder& gob, const std::string& key, boost::python::object& method, const std::string& qisig)
-    {
-      if (boost::starts_with(key, "__")) {
-        qiLogVerbose() << "Not binding private method: " << key;
-        return;
-      }
-      qi::MetaMethodBuilder mmb;
-      mmb.setName(key);
-      boost::python::object desc = method.attr("__doc__");
-      boost::python::object pyqiretsig = boost::python::getattr(method, "__qi_return_signature__", boost::python::object());
-      if (desc)
-        mmb.setDescription(boost::python::extract<std::string>(desc));
-      boost::python::object inspect = importInspect();
-      boost::python::object tu;
-      try {
-        //returns: (args, varargs, keywords, defaults)
-        tu = inspect.attr("getargspec")(method);
-      } catch(const boost::python::error_already_set& e) {
-        std::string s = PyFormatError();
-        qiLogWarning() << "Skipping the registration of '" << key << "': " << s;
-        return;
-      }
-
-      std::string defparamsig = generateDefaultParamSignature(key, tu, PyMethod_Check(method.ptr()));
-
-      qiLogDebug() << "Adding method: " << defparamsig;
-      if (!qisig.empty())
-        mmb.setParametersSignature(qisig);
-      else
-        mmb.setParametersSignature(defparamsig);
-
-      std::string qiretsig;
-      if (pyqiretsig) {
-        qiretsig = boost::python::extract<std::string>(pyqiretsig);
-      }
-
-      if (!qiretsig.empty())
-        mmb.setReturnSignature(qiretsig);
-      else
-        mmb.setReturnSignature("m");
-
-      // Throw on error
-      gob.xAdvertiseMethod(mmb, qi::AnyFunction::fromDynamicFunction(boost::bind(pyCallMethod, _1, PyThreadSafeObject(method))));
-    }
-
-    ObjectThreadingModel getThreadingModel(boost::python::object &obj)
-    {
-      if (isMultithreaded(obj))
-        return ObjectThreadingModel_MultiThread;
-      return ObjectThreadingModel_SingleThread;
-    }
-
-    namespace
-    {
-      void deleteNoOp(qi::Strand*)
-      {
-      }
-
-      constexpr const auto qiObjectUidName = "__qi_objectuid__";
-
-      // Precondition: The GIL is locked.
-      boost::optional<ObjectUid> readObjectUid(const boost::python::object& obj)
-      {
-        auto qiObjectUid = boost::python::getattr(obj, qiObjectUidName, {});
-        if (qiObjectUid)
-        {
-          boost::python::extract<std::string> extractor{ qiObjectUid };
-          if (extractor.check())
-          {
-            const auto uidStr = extractor();
-            const auto uid = qi::deserializeObjectUid(uidStr).value();
-            return uid;
-          }
-          else
-          {
-            qiLogError() << "Failed to read the ObjectUid value stored in python object attribute '"
-                         << qiObjectUidName << "'.";
-          }
-        }
-        return {};
-      }
-
-      // Precondition: The GIL is locked.
-      void writeObjectUid(boost::python::object obj, const qi::ObjectUid& uid)
-      {
-        const auto uidStr = serializeObjectUid<std::string>(uid);
-        boost::python::setattr(obj, qiObjectUidName, boost::python::object(uidStr));
-      }
-    } // namespace
-
-
-    qi::AnyObject makeQiAnyObject(boost::python::object obj)
-    {
-      {
-        //is that a qi::AnyObject?
-        boost::python::extract<PyQiObject&> isthatyoumum(obj);
-
-        if (isthatyoumum.check()) {
-          qiLogDebug() << "This PyObject is already a qi::AnyObject. Just returning it.";
-          return isthatyoumum().object();
-        }
-      }
-      {
-        //is that a qi::Future?
-        boost::python::extract<PyFuture&> isthatyoumum(obj);
-
-        if (isthatyoumum.check()) {
-          qiLogDebug() << "This PyObject is a Future. Making a qi::Object from it.";
-          return qi::AnyObject(boost::make_shared<qi::Future<qi::AnyValue> >(isthatyoumum()));
-        }
-      }
-
-      qi::DynamicObjectBuilder gob;
-
-      //let the GIL handle the thread-safety for us
-      gob.setThreadingModel(getThreadingModel(obj));
-      GILScopedLock _lock;
-      boost::python::object attrs(boost::python::borrowed(PyObject_Dir(obj.ptr())));
-
-      boost::python::object asignal = qi::py::makePySignal("(i)").attr("__class__");
-      boost::python::object aproperty = qi::py::makePyProperty("(i)").attr("__class__");
-
-      for (int i = 0; i < boost::python::len(attrs); ++i) {
-        std::string key = boost::python::extract<std::string>(attrs[i]);
-        boost::python::object m = obj.attr(attrs[i]);
-
-        boost::python::object pyqiname = boost::python::getattr(m, "__qi_name__", boost::python::object());
-        boost::python::object pyqisig = boost::python::getattr(m, "__qi_signature__", boost::python::object());
-        std::string qisig;
-
-        if (pyqisig) {
-          boost::python::extract<std::string> ex(pyqisig);
-
-          if (!ex.check())
-            qiLogWarning() << "__qi_signature__ for " << key << " is not of type string";
-          else
-            qisig = ex();
-        }
-
-        if (qisig == "DONOTBIND")
-          continue;
-        //override name by the one provide by @bind
-        if (pyqiname) {
-          boost::python::extract<std::string> ex(pyqiname);
-          if (!ex.check())
-            qiLogWarning() << "__qi_name__ for " << key << " is not of type string";
-          else
-            key = ex();
-        }
-
-        //Handle Signal
-        if (PyObject_IsInstance(m.ptr(), asignal.ptr())) {
-          qiLogDebug() << "Adding signal:" << key;
-          gob.advertiseSignal(key, qi::py::getSignal(m));
-          continue;
-        }
-
-        //Handle Property
-        if (PyObject_IsInstance(m.ptr(), aproperty.ptr())) {
-          qiLogDebug() << "Adding property:" << key;
-          gob.advertiseProperty(key, qi::py::getProperty(m));
-          continue;
-        }
-
-        //Handle Methods, Functions, ... everything that is callable.
-        if (PyCallable_Check(m.ptr())) {
-          registerMethod(gob, key, m, qisig);
-
-          continue;
-        }
-      }
-
-      // If we find an ObjectUid in the python object, reuse it.
-      auto maybeObjectUid = readObjectUid(obj);
-      if (maybeObjectUid)
-      {
-        // This object already has an ObjectUid: reuse it.
-        gob.setOptionalUid(maybeObjectUid);
-      }
-
-      //this is a useless callback, needed to keep a ref on obj.
-      //when the GO is destructed, the ref is released.
-      //doNothing use PyThreadSafeObject to lock the GIL as needed
-      qi::AnyObject anyobj = gob.object(boost::bind<void>(&doNothing, _1, obj));
-
-      // If there was no ObjectUid stored in the python object, store a new one.
-      if (!maybeObjectUid)
-      { // First time we make an AnyObject for this python object: store the new ObjectUid in it.
-        writeObjectUid(obj, anyobj.uid());
-      }
-
-      // At this point both the AnyObject and the related python object have the same ObjectUid value.
-      QI_ASSERT_TRUE(anyobj.uid() == readObjectUid(obj));
-
-      if (qi::Strand* strand = extractStrandFromObject(obj))
-        // no need to keep the strand alive because the anyobject is already doing that
-        anyobj.forceExecutionContext(boost::shared_ptr<qi::Strand>(strand, deleteNoOp));
-
-      return anyobj;
-    }
-
-    void export_pyobject() {
-      boost::python::class_<qi::py::PyQiObject>("Object", boost::python::no_init)
-          .def("__eq__",   &PyQiObject::operator==)
-          .def("__ne__",   &PyQiObject::operator!=)
-          .def("__lt__",   &PyQiObject::operator<)
-          .def("__le__",   &PyQiObject::operator<=)
-          .def("__gt__",   &PyQiObject::operator>)
-          .def("__ge__",   &PyQiObject::operator>=)
-          .def("__bool__", &PyQiObject::isValid)
-          .def("isValid",  &PyQiObject::isValid)
-          .def("call", boost::python::raw_function(&pyParamShrinker<PyQiObject>, 1))
-          .def("async", boost::python::raw_function(&pyParamShrinkerAsync<PyQiObject>, 1))
-          //TODO: .def("post")
-          //TODO: .def("setProperty")
-          //TODO: .def("property")
-          .def("metaObject", &qi::py::PyQiObject::metaObject);
-      //import inspect in our current namespace
-      importInspect();
-    }
+#include <qi/session.hpp>
+#include <pybind11/operators.h>
+
+qiLogCategory("qi.python.object");
+
+namespace py = pybind11;
+
+namespace qi
+{
+namespace py
+{
+
+namespace
+{
+
+constexpr static const auto qiObjectUidAttributeName = "__qi_objectuid__";
+constexpr static const auto qiNameAttributeName = "__qi_name__";
+constexpr static const auto qiSignatureAttributeName = "__qi_signature__";
+constexpr static const auto qiSignatureAttributeDoNotBindValue = "DONOTBIND";
+constexpr static const auto qiReturnSignatureAttributeName = "__qi_return_signature__";
+constexpr static const auto asyncArgName = "_async";
+constexpr static const auto overloadArgName = "_overload";
+
+// Calls the function of a qi Object, with a list of Python arguments.
+::py::object call(const Object& obj, std::string funcName,
+                  ::py::args args, ::py::kwargs kwargs)
+{
+  ::py::gil_scoped_acquire lock;
+
+  if (auto optOverload = extractKeywordArg<std::string>(kwargs, overloadArgName))
+    funcName = *optOverload;
+
+  auto async = false;
+  if (auto optAsync = extractKeywordArg<bool>(kwargs, asyncArgName))
+    async = *optAsync;
+
+  auto argsValue = AnyValue::from(args);
+
+  Promise prom;
+  {
+    ::py::gil_scoped_release _unlock;
+    auto metaCallFut = obj.metaCall(funcName, argsValue.asTupleValuePtr(),
+                                    async ? MetaCallType_Queued : MetaCallType_Direct);
+
+    // `adaptFutureUnwrap` supports `AnyReference` containing a `Future`, so
+    // `Future<AnyReference>` will be unwrapped if the `AnyReference` is itself
+    // a `Future`.
+    adaptFutureUnwrap(metaCallFut, prom);
+  }
+
+  return resultObject(prom.future(), async);
+}
+
+std::string docString(const MetaMethod& method)
+{
+  std::ostringstream oss;
+  oss << method.toString() << " -> " << method.returnSignature() << "\n"
+      << method.description();
+  return oss.str();
+}
+
+void populateMethods(::py::object pyobj, const Object& obj)
+{
+  ::py::gil_scoped_acquire lock;
+
+  const auto& metaObj = obj.metaObject();
+  const auto& methodMap = metaObj.methodMap();
+  for (const auto& methodSlot : methodMap)
+  {
+    const auto& method = methodSlot.second;
+    const auto& methodName = method.name();
+
+    // Drop special members.
+    if (method.uid() < qiObjectSpecialMemberMaxUid)
+      continue;
+
+    namespace sph = std::placeholders;
+
+    const auto doc = docString(method);
+    std::function<::py::object(::py::args, ::py::kwargs)> callMethod =
+      std::bind(&call, obj, method.name(), sph::_1, sph::_2);
+    ::py::setattr(pyobj, methodName.c_str(),
+                  ::py::cpp_function(std::move(callMethod),
+                                     ::py::is_method(pyobj.get_type()),
+                                     ::py::doc(doc.c_str())));
   }
 }
+
+void populateSignals(::py::object pyobj, const Object& obj)
+{
+  const auto& metaObj = obj.metaObject();
+  const auto& signalMap = metaObj.signalMap();
+  for (const auto& signalSlot : signalMap)
+  {
+    const auto& signal = signalSlot.second;
+    const auto& signalName = signal.name();
+
+    // Do not add a signal that is also a property, it must be added as a
+    // property.
+    if (metaObj.propertyId(signalName) != -1)
+      continue;
+
+    // Drop special members.
+    if (signal.uid() < qiObjectSpecialMemberMaxUid)
+      continue;
+
+    ::py::setattr(pyobj, signalName.c_str(),
+                  castToPyObject(new detail::ProxySignal{ obj, signal.uid() }));
+  }
+}
+
+void populateProperties(::py::object pyobj, const Object& obj)
+{
+  const auto propMap = obj.metaObject().propertyMap();
+  for (const auto& propSlot : propMap)
+  {
+    const auto& prop = propSlot.second;
+    const auto& propName = prop.name();
+
+    // Drop special members.
+    if (prop.uid() < qiObjectSpecialMemberMaxUid)
+      continue;
+
+    ::py::setattr(pyobj, propName.c_str(),
+                  castToPyObject(new detail::ProxyProperty{ obj, prop.uid() }));
+  }
+}
+
+using GenericFunction = std::function<::py::object(::py::args)>;
+
+// Returns an owning AnyReference (it must be explicitly destroyed).
+//
+// @pre `cargs.size() > 0`, arguments must at least contain a `DynamicObject`
+//      on which the function is to be called.
+AnyReference callPythonMethod(const AnyReferenceVector& cargs,
+                              const GILGuardedObject& method)
+{
+  auto it = cargs.begin();
+  const auto cargsEnd = cargs.end();
+
+  // Drop the first arg which is a `DynamicObject*`.
+  QI_ASSERT_TRUE(it != cargsEnd);
+  ++it;
+
+  ::py::gil_scoped_acquire lock;
+  ::py::tuple args(std::distance(it, cargsEnd));
+
+  ::py::size_t i = 0;
+  while (it != cargsEnd)
+  {
+    QI_ASSERT_TRUE(i < args.size());
+    args[i++] = castToPyObject(*it++);
+  }
+
+  // Convert Python future object into a C++ Future, to allow libqi to unwrap
+  // it.
+  const ::py::object ret = (*method)(*args);
+  if (::py::isinstance<Future>(ret))
+    return AnyValue::from(ret.cast<Future>()).release();
+  return AnyReference::from(ret).content().clone();
+}
+
+// Gets the default signature for a method.
+//
+// If the function takes variadic arguments (vargs), returns the signature of a
+// pure dynamic element, which indicates a generic function that takes anything.
+//
+// Otherwise, returns the signature of a function taking n Python objects, with n
+// the number of positional parameters the function accepts.
+std::string methodDefaultParametersSignature(const ::py::function& method)
+{
+  ::py::gil_scoped_acquire lock;
+
+  // Returns a Signature object (see
+  // https://docs.python.org/3/library/inspect.html#inspect.Signature).
+  const auto inspect = ::py::module::import("inspect");
+  const ::py::object pySignature = inspect.attr("signature")(method);
+  const ::py::object paramType = inspect.attr("Parameter");
+
+  const auto parameterKind = [](const ::py::handle& obj) -> ::py::object {
+    return obj.attr("kind");
+  };
+
+  const ::py::object varPositional = paramType.attr("VAR_POSITIONAL");
+  const auto isVarPositional = [&](const std::pair<::py::handle, ::py::handle>& param) {
+    return parameterKind(param.second).equal(varPositional);
+  };
+
+  // If there is any vargs parameter, return `m`.
+  const ::py::dict parameters = pySignature.attr("parameters");
+  if (std::any_of(parameters.begin(), parameters.end(), isVarPositional))
+    return Signature::fromType(Signature::Type_Dynamic).toString();
+
+  const auto positionalOnly = paramType.attr("POSITIONAL_ONLY");
+  ::py::object positionalOrKeyword = paramType.attr("POSITIONAL_OR_KEYWORD");
+  const auto isPositional = [&](const std::pair<::py::handle, ::py::handle>& param) {
+    const auto kind = parameterKind(param.second);
+    return kind.equal(positionalOnly) || kind.equal(positionalOrKeyword);
+  };
+
+  const auto argsCount =
+    std::count_if(parameters.begin(), parameters.end(), isPositional);
+  return makeTupleSignature(
+           std::vector<TypeInterface*>(argsCount, typeOf<::py::object>()))
+    .toString();
+}
+
+boost::optional<unsigned int> registerMethod(DynamicObjectBuilder& gob,
+                                             const std::string& name,
+                                             const ::py::function& method,
+                                             std::string parametersSignature)
+{
+  ::py::gil_scoped_acquire lock;
+
+  if (boost::starts_with(name, "__"))
+  {
+    qiLogVerbose() << "Registration of method " << name << " is ignored as it is private.";
+    return {};
+  }
+
+  MetaMethodBuilder mmb;
+  mmb.setName(name);
+
+  ::py::object desc = method.doc();
+  if (desc)
+    mmb.setDescription(::py::str(desc));
+
+  if (parametersSignature.empty())
+    parametersSignature = methodDefaultParametersSignature(method);
+  mmb.setParametersSignature(parametersSignature);
+
+  std::string returnSignature;
+  const auto pyqiretsig = ::py::getattr(method, qiReturnSignatureAttributeName, ::py::none());
+  if (!pyqiretsig.is_none())
+    returnSignature = ::py::str(pyqiretsig);
+
+  if (returnSignature.empty())
+    returnSignature = Signature::Type_Dynamic;
+  mmb.setReturnSignature(returnSignature);
+
+  qiLogVerbose() << "Registration of method " << name << " with signature "
+                 << parametersSignature << " -> " << returnSignature << ".";
+
+  return gob.xAdvertiseMethod(mmb, AnyFunction::fromDynamicFunction(
+                                     boost::bind(callPythonMethod, _1,
+                                                 GILGuardedObject(method))));
+}
+
+} // namespace
+
+namespace detail
+{
+
+boost::optional<ObjectUid> readObjectUid(const ::py::object& obj)
+{
+  ::py::gil_scoped_acquire lock;
+  const ::py::bytes qiObjectUid = ::py::getattr(obj, qiObjectUidAttributeName, ::py::none());
+  if (!qiObjectUid.is_none())
+    return deserializeObjectUid(static_cast<std::string>(qiObjectUid));
+  return {};
+}
+
+void writeObjectUid(const pybind11::object& obj, const ObjectUid& uid)
+{
+  ::py::gil_scoped_acquire lock;
+  const ::py::bytes uidData = serializeObjectUid<std::string>(uid);
+  ::py::setattr(obj, qiObjectUidAttributeName, uidData);
+}
+
+} // namespace detail
+
+
+::py::object toPyObject(Object obj)
+{
+  auto result = castToPyObject(obj);
+
+  if (!obj.isValid())
+    return result;
+
+  const auto objType = obj.asGenericObject()->type;
+  if (objType == typeOf<Future>())
+    return castToPyObject(qi::Object<Future>(obj).asT());
+  if (objType == typeOf<FutureSync<AnyValue>>())
+    return castToPyObject(qi::Object<FutureSync<AnyValue>>(obj)->async());
+  if (objType == typeOf<Promise>())
+    return castToPyObject(qi::Object<Promise>(obj).asT());
+
+  populateMethods(result, obj);
+  populateSignals(result, obj);
+  populateProperties(result, obj);
+  return result;
+}
+
+Object toObject(const ::py::object& obj)
+{
+  ::py::gil_scoped_acquire lock;
+
+  // Check the few known Object types that a Python object can be.
+  if (::py::isinstance<Object>(obj))
+    return obj.cast<Object>();
+
+  if (::py::isinstance<Future>(obj))
+  {
+    auto fut = obj.cast<Future>();
+    return Object(boost::make_shared<Future>(fut));
+  }
+
+  if (::py::isinstance<Promise>(obj))
+  {
+    auto prom = obj.cast<Promise>();
+    return Object(boost::make_shared<Promise>(prom));
+  }
+
+  DynamicObjectBuilder gob;
+  gob.setThreadingModel(isMultithreaded(obj) ? ObjectThreadingModel_MultiThread
+                                             : ObjectThreadingModel_SingleThread);
+
+  const auto attrKeys = ::py::reinterpret_steal<::py::list>(PyObject_Dir(obj.ptr()));
+  for (const ::py::handle& pyAttrKey : attrKeys)
+  {
+    QI_ASSERT_TRUE(pyAttrKey);
+    QI_ASSERT_FALSE(pyAttrKey.is_none());
+    QI_ASSERT_TRUE(::py::isinstance<::py::str>(pyAttrKey));
+
+    const auto attrKey = pyAttrKey.cast<std::string>();
+    auto memberName = attrKey;
+
+    const ::py::object attr = obj.attr(pyAttrKey);
+    if (attr.is_none())
+    {
+      qiLogVerbose() << "The object attribute '" << attrKey
+                     << "' has value 'None', and will therefore be ignored.";
+      continue;
+    }
+
+    std::string signature;
+    const auto pyqisig = ::py::getattr(attr, qiSignatureAttributeName, ::py::none());
+    if (!pyqisig.is_none())
+      signature = ::py::str(pyqisig);
+
+    if (signature == qiSignatureAttributeDoNotBindValue)
+      continue;
+
+    const auto pyqiname = ::py::getattr(attr, qiNameAttributeName, ::py::none());
+    if (!pyqiname.is_none())
+      memberName = ::py::str(pyqiname);
+
+    if (::py::isinstance<Signal>(attr))
+    {
+      auto sig = ::py::cast<Signal*>(attr);
+      gob.advertiseSignal(memberName, sig);
+      continue;
+    }
+
+    if (::py::isinstance<Property>(attr))
+    {
+      auto prop = ::py::cast<Property*>(attr);
+      gob.advertiseProperty(memberName, prop);
+      continue;
+    }
+
+    if (::py::isinstance<::py::function>(attr))
+    {
+      registerMethod(gob, memberName, attr, signature);
+      continue;
+    }
+  }
+
+  // If we find an ObjectUid in the python object, reuse it.
+  auto maybeObjectUid = detail::readObjectUid(obj);
+  if (maybeObjectUid)
+  {
+    // This object already has an ObjectUid: reuse it.
+    gob.setOptionalUid(maybeObjectUid);
+  }
+
+  // This is a useless callback, needed to keep a reference on the python object.
+  // When the GenericObject is destroyed, the reference is released.
+  GILGuardedObject guardedObj(obj);
+  Object anyobj = gob.object([guardedObj](GenericObject*) mutable {
+      ::py::gil_scoped_acquire lock;
+      *guardedObj = {};
+    });
+
+  // If there was no ObjectUid stored in the python object, store a new one.
+  if (!maybeObjectUid)
+    // First time we make an AnyObject for this python object: store the new ObjectUid in it.
+    detail::writeObjectUid(obj, anyobj.uid());
+
+  // At this point, both the AnyObject and the related python object have the same ObjectUid value.
+  QI_ASSERT_TRUE(anyobj.uid() == detail::readObjectUid(obj));
+
+  if (const auto strand = strandOf(obj))
+    anyobj.forceExecutionContext(strand);
+
+  return anyobj;
+}
+
+void exportObject(::py::module& m)
+{
+  using namespace ::py;
+  using namespace ::py::literals;
+
+  gil_scoped_acquire lock;
+
+  class_<Object>(m, "Object", dynamic_attr())
+    .def(self == self, call_guard<gil_scoped_release>())
+    .def(self != self, call_guard<gil_scoped_release>())
+    .def(self < self, call_guard<gil_scoped_release>())
+    .def(self <= self, call_guard<gil_scoped_release>())
+    .def(self > self, call_guard<gil_scoped_release>())
+    .def(self >= self, call_guard<gil_scoped_release>())
+    .def("__bool__", &Object::isValid, call_guard<gil_scoped_release>())
+    .def("isValid", &Object::isValid, call_guard<gil_scoped_release>())
+    .def("call",
+         [](Object& obj, const std::string& funcName, ::py::args args,
+            ::py::kwargs kwargs) {
+           return call(obj, funcName, std::move(args), std::move(kwargs));
+         },
+         "funcName"_a)
+    .def("async",
+         [](Object& obj, const std::string& funcName, ::py::args args,
+            ::py::kwargs kwargs) {
+           kwargs[asyncArgName] = true;
+           return call(obj, funcName, std::move(args), std::move(kwargs));
+         },
+         "funcName"_a)
+    .def("metaObject",
+         [](const Object& obj) { return AnyReference::from(obj.metaObject()); },
+         call_guard<gil_scoped_release>());
+  // TODO: .def("post")
+  // TODO: .def("setProperty")
+  // TODO: .def("property")
+}
+
+} // namespace py
+} // namespace qi

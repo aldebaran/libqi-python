@@ -1,31 +1,29 @@
-#!/usr/bin/env python
+#
+# Copyright (C) 2010 - 2020 Softbank Robotics Europe
+#
 # -*- coding: utf-8 -*-
-""" QiMessaging Python bindings """
-from __future__ import absolute_import
-# from __future__ import unicode_literals
 
-from _qi import pylog
-from _qi import setLevel, setContext, setFilters
+from .qi_python import LogLevel, pylog, setLevel, setContext, setFilters
 from collections import namedtuple
 import inspect
-import uuid
 
-__all__ = ("SILENT", "FATAL", "ERROR", "WARNING", "INFO", "VERBOSE", "DEBUG",
+__all__ = [
+    "SILENT", "FATAL", "ERROR", "WARNING", "INFO", "VERBOSE", "DEBUG",
     "fatal", "error", "warning", "info", "verbose",
-    "Logger", "setLevel", "setContext", "setFilters",
-    "getLogger", "logFatal", "logError", "logWarning", "logInfo", "logVerbose", "logDebug",  #deprecated
-)
+    "Logger", "setLevel", "setContext", "setFilters"
+]
 
 # Log Level
-SILENT  = 0
-FATAL   = 1
-ERROR   = 2
-WARNING = 3
-INFO    = 4
-VERBOSE = 5
-DEBUG   = 6
+SILENT = LogLevel.Silent
+FATAL = LogLevel.Fatal
+ERROR = LogLevel.Error
+WARNING = LogLevel.Warning
+INFO = LogLevel.Info
+VERBOSE = LogLevel.Verbose
+DEBUG = LogLevel.Debug
 
-def _logGetTraceInfo():
+
+def log_get_trace_info():
     info = None
     try:
         stack = inspect.stack()
@@ -35,14 +33,16 @@ def _logGetTraceInfo():
         callerframerecord = stack[2]
         frame = callerframerecord[0]
         info = inspect.getframeinfo(frame)
-    except:
-        FakeTrackback = namedtuple("FakeTrackback", ["filename", "function", "lineno"])
+    except Exception:
+        FakeTrackback = namedtuple("FakeTrackback",
+                                   ["filename", "function", "lineno"])
         info = FakeTrackback('<file>', '<function>', -1)
     return info
 
-def _printToString(mess, *args):
-    margs = (mess,) + args
-    return ' '.join(str(x) for x in margs)
+
+def print_to_string(mess, *args):
+    return ' '.join(str(x) for x in (mess,) + args)
+
 
 class Logger:
     def __init__(self, category):
@@ -51,93 +51,114 @@ class Logger:
     def fatal(self, mess, *args):
         """ fatal(mess, *args) -> None
         :param mess: Messages string
-        :param \*args: Messages format string working the same way as python function print.
+        :param *args: Messages format string working the same way as python
+                      function print.
         Logs a message with level FATAL on this logger."""
-        info = _logGetTraceInfo()
-        pylog(FATAL, self.category, _printToString(mess, *args), info.filename, info.function, info.lineno)
+        info = log_get_trace_info()
+        pylog(FATAL, self.category, print_to_string(mess, *args),
+              info.filename, info.function, info.lineno)
 
     def error(self, mess, *args):
         """ error(mess, *args) -> None
         :param mess: Messages string
-        :param \*args: Arguments are interpreted as for :py:func:`qi.Logger.fatal`.
+        :param *args: Arguments are interpreted as for
+                      :py:func:`qi.Logger.fatal`.
         Logs a message with level ERROR on this logger."""
-        info = _logGetTraceInfo()
-        pylog(ERROR, self.category, _printToString(mess, *args), info.filename, info.function, info.lineno)
+        info = log_get_trace_info()
+        pylog(ERROR, self.category, print_to_string(mess, *args),
+              info.filename, info.function, info.lineno)
 
     def warning(self, mess, *args):
         """ warning(mess, *args) -> None
         :param mess: Messages string
-        :param \*args: Arguments are interpreted as for :py:func:`qi.Logger.fatal`.
+        :param *args: Arguments are interpreted as for
+                      :py:func:`qi.Logger.fatal`.
         Logs a message with level WARNING on this logger."""
-        info = _logGetTraceInfo()
-        pylog(WARNING, self.category, _printToString(mess, *args), info.filename, info.function, info.lineno)
+        info = log_get_trace_info()
+        pylog(WARNING, self.category, print_to_string(mess, *args),
+              info.filename, info.function, info.lineno)
 
     def info(self, mess, *args):
         """ info(mess, *args) -> None
         :param mess: Messages string
-        :param \*args: Arguments are interpreted as for :py:func:`qi.Logger.fatal`.
+        :param *args: Arguments are interpreted as for
+                      :py:func:`qi.Logger.fatal`.
         Logs a message with level INFO on this logger."""
-        info = _logGetTraceInfo()
-        pylog(INFO, self.category, _printToString(mess, *args), info.filename, info.function, info.lineno)
+        info = log_get_trace_info()
+        pylog(INFO, self.category, print_to_string(mess, *args),
+              info.filename, info.function, info.lineno)
 
     def verbose(self, mess, *args):
         """ verbose(mess, *args) -> None
         :param mess: Messages string
-        :param \*args: Arguments are interpreted as for :py:func:`qi.Logger.fatal`.
+        :param *args: Arguments are interpreted as for
+                      :py:func:`qi.Logger.fatal`.
         Logs a message with level VERBOSE on this logger."""
-        info = _logGetTraceInfo()
-        pylog(VERBOSE, self.category, _printToString(mess, *args), info.filename, info.function, info.lineno)
+        info = log_get_trace_info()
+        pylog(VERBOSE, self.category, print_to_string(mess, *args),
+              info.filename, info.function, info.lineno)
+
 
 def fatal(cat, mess, *args):
     """ fatal(cat, mess, *args) -> None
-    :param cat: The category is potentially a period-separated hierarchical value.
+    :param cat: The category is potentially a period-separated hierarchical
+                value.
     :param mess: Messages string
-    :param \*args: Messages format string working the same way as print python function.
+    :param *args: Messages format string working the same way as print python
+                  function.
     Logs a message with level FATAL."""
-    info = _logGetTraceInfo()
-    pylog(FATAL, cat, _printToString(mess, *args), info.filename, info.function, info.lineno)
+    info = log_get_trace_info()
+    pylog(FATAL, cat, print_to_string(mess, *args),
+          info.filename, info.function, info.lineno)
+
 
 def error(cat, mess, *args):
     """ error(cat, mess, *args) -> None
-    :param cat: The category is potentially a period-separated hierarchical value.
+    :param cat: The category is potentially a period-separated hierarchical
+                value.
     :param mess: Messages string
-    :param \*args: Messages format string working the same way as print python function.
+    :param *args: Messages format string working the same way as print python
+                  function.
     Logs a message with level ERROR."""
-    info = _logGetTraceInfo()
-    pylog(ERROR, cat, _printToString(mess, *args), info.filename, info.function, info.lineno)
+    info = log_get_trace_info()
+    pylog(ERROR, cat, print_to_string(mess, *args),
+          info.filename, info.function, info.lineno)
+
 
 def warning(cat, mess, *args):
     """ warning(cat, mess, *args) -> None
-    :param cat: The category is potentially a period-separated hierarchical value.
+    :param cat: The category is potentially a period-separated hierarchical
+                value.
     :param mess: Messages string
-    :param \*args: Messages format string working the same way as print python function.
+    :param *args: Messages format string working the same way as print python
+                  function.
     Logs a message with level WARNING."""
-    info = _logGetTraceInfo()
-    pylog(WARNING, cat, _printToString(mess, *args), info.filename, info.function, info.lineno)
+    info = log_get_trace_info()
+    pylog(WARNING, cat, print_to_string(mess, *args),
+          info.filename, info.function, info.lineno)
+
 
 def info(cat, mess, *args):
     """ info(cat, mess, *args) -> None
-    :param cat: The category is potentially a period-separated hierarchical value.
+    :param cat: The category is potentially a period-separated hierarchical
+                value.
     :param mess: Messages string
-    :param \*args: Messages format string working the same way as print python function.
+    :param *args: Messages format string working the same way as print python
+                  function.
     Logs a message with level INFO."""
-    info = _logGetTraceInfo()
-    pylog(INFO, cat, _printToString(mess, *args), info.filename, info.function, info.lineno)
+    info = log_get_trace_info()
+    pylog(INFO, cat, print_to_string(mess, *args),
+          info.filename, info.function, info.lineno)
+
 
 def verbose(cat, mess, *args):
     """ verbose(cat, mess, *args) -> None
-    :param cat: The category is potentially a period-separated hierarchical value.
+    :param cat: The category is potentially a period-separated hierarchical
+                value.
     :param mess: Messages string
-    :param \*args: Messages format string working the same way as print python function.
+    :param *args: Messages format string working the same way as print python
+                  function.
     Logs a message with level VERBOSE."""
-    info = _logGetTraceInfo()
-    pylog(VERBOSE, cat, _printToString(mess, *args), info.filename, info.function, info.lineno)
-
-#deprecated 2.0.1  (to remove in 2.1)
-logFatal   = fatal
-logError   = error
-logWarning = warning
-logInfo    = info
-logVerbose = verbose
-logDebug   = verbose
-getLogger  = Logger
+    info = log_get_trace_info()
+    pylog(VERBOSE, cat, print_to_string(mess, *args),
+          info.filename, info.function, info.lineno)

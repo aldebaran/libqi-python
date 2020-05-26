@@ -1,20 +1,23 @@
-#pragma once
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
 
-#ifndef _QIPYTHON_PYCLOCK_HPP_
-#define _QIPYTHON_PYCLOCK_HPP_
+#pragma once
 
-#include <boost/python.hpp>
+#ifndef QIPYTHON_PYCLOCK_HPP
+#define QIPYTHON_PYCLOCK_HPP
 
-namespace qi {
-namespace py {
+#include <qipython/common.hpp>
 
-  void export_pyclock();
+namespace qi
+{
+namespace py
+{
 
-}
-}
+void exportClock(pybind11::module& module);
 
-#endif
+} // namespace py
+} // namespace qi
+
+#endif // QIPYTHON_PYCLOCK_HPP

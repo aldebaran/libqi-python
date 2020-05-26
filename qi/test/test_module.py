@@ -1,6 +1,11 @@
+#
+# Copyright (C) 2010 - 2020 Softbank Robotics Europe
+#
+# -*- coding: utf-8 -*-
+
 import qi
-import sys
 import pytest
+
 
 def test_module():
     mod = qi.module("moduletest")
@@ -20,11 +25,13 @@ def test_module():
 
     assert mod.call("lol") == 3
 
+
 def test_module_undef():
     mod = qi.module("moduletest")
 
     with pytest.raises(AttributeError):
         mod.createObject("LOL")
+
 
 def test_module_service():
     session = qi.Session()

@@ -1,98 +1,88 @@
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
 
-
 #include <qipython/pylog.hpp>
-
-#include <boost/python.hpp>
-
+#include <qipython/common.hpp>
 #include <qi/application.hpp>
 #include <qi/log.hpp>
 #include <qi/os.hpp>
+#include <pybind11/pybind11.h>
 
-namespace qi {
-  namespace py {
-    static void pylog(int level,
-                      const std::string& name,
-                      const std::string& message,
-                      const std::string& file,
-                      const std::string& func,
-                      int line)
-    {
-      qi::log::log((qi::LogLevel)level,
-                   name.c_str(),
-                   message.c_str(),
-                   file.c_str(),
-                   func.c_str(),
-                   line);
-    }
+namespace py = pybind11;
 
-    static void pysetlevel(int level)
-    {
-      qi::log::setLogLevel((qi::LogLevel)level);
-    }
+namespace qi
+{
+namespace py
+{
 
-    static void pysetcontext(int context)
-    {
-      qi::log::setContext(context);
-    }
+void exportLog(::py::module& m)
+{
+  using namespace ::py;
+  using namespace ::py::literals;
 
-    static void pysetfilters(const std::string& filters)
-    {
-      qi::log::addFilters(filters);
-    }
+  gil_scoped_acquire lock;
 
+  enum_<LogLevel>(m, "LogLevel")
+    .value("Silent",  LogLevel_Silent)
+    .value("Fatal",   LogLevel_Fatal)
+    .value("Error",   LogLevel_Error)
+    .value("Warning", LogLevel_Warning)
+    .value("Info",    LogLevel_Info)
+    .value("Verbose", LogLevel_Verbose)
+    .value("Debug",   LogLevel_Debug);
 
+  m.def("pylog",
+        [](LogLevel level, const std::string& name, const std::string& message,
+           const std::string& file, const std::string& func, int line) {
+          log::log(level, name.c_str(), message.c_str(), file.c_str(),
+                   func.c_str(), line);
+        },
+        call_guard<gil_scoped_release>(), "level"_a, "name"_a, "message"_a,
+        "file"_a, "func"_a, "line"_a);
 
-    void export_pylog()
-    {
-      boost::python::def("pylog", &pylog);
-      boost::python::def("setFilters", &pysetfilters,
-                         "setFilters(filters) -> None\n"
-                         ":param filters: List of rules separated by colon.\n"
-                         "\n"
-                         "Set log filtering options.\n"
-                         "Each rule can be:\n\n"
-                         "  +CAT: enable category CAT\n\n"
-                         "  -CAT: disable category CAT\n\n"
-                         "  CAT=level : set category CAT to level\n\n"
-                         "Each category can include a '*' for globbing.\n"
-                         "\n"
-                         ".. code-block:: python\n"
-                         "\n"
-                         "  qi.logging.setFilter(\"qi.*=debug:-qi.foo:+qi.foo.bar\")\n"
-                         "\n"
-                         "(all qi.* logs in info, remove all qi.foo logs except qi.foo.bar)\n");
+  m.def("setFilters",
+        [](const std::string& filters) { log::addFilters(filters); },
+        call_guard<gil_scoped_release>(), "filters"_a,
+        doc("Set log filtering options.\n"
+            "Each rule can be:\n\n"
+            "  +CAT: enable category CAT\n\n"
+            "  -CAT: disable category CAT\n\n"
+            "  CAT=level : set category CAT to level\n\n"
+            "Each category can include a '*' for globbing.\n"
+            "\n"
+            ".. code-block:: python\n"
+            "\n"
+            "  qi.logging.setFilter(\"qi.*=debug:-qi.foo:+qi.foo.bar\")\n"
+            "\n"
+            "(all qi.* logs in info, remove all qi.foo logs except qi.foo.bar)\n"
+            ":param filters: List of rules separated by colon."));
 
-      boost::python::def("setContext", &pysetcontext,
-                         "setContext(context) -> None\n"
-                         ":param context: A bitfield (add values descibe below).\n"
-                         "\n"
-                         "  1  : Verbosity                            \n\n"
-                         "  2  : ShortVerbosity                       \n\n"
-                         "  4  : Date                                 \n\n"
-                         "  8  : ThreadId                             \n\n"
-                         "  16 : Category                             \n\n"
-                         "  32 : File                                 \n\n"
-                         "  64 : Function                             \n\n"
-                         "  128: EndOfLine                            \n\n"
-                         "  Some useful values for context are:       \n\n"
-                         "  26 : (verb+threadId+cat)                  \n\n"
-                         "  30 : (verb+threadId+date+cat)             \n\n"
-                         "  126: (verb+threadId+date+cat+file+fun)    \n\n"
-                         "  254: (verb+threadId+date+cat+file+fun+eol)\n\n"
-                         "\n");
+  m.def("setContext", [](int context) { qi::log::setContext(context); },
+        call_guard<gil_scoped_release>(), "context"_a,
+        doc("  1  : Verbosity                            \n"
+            "  2  : ShortVerbosity                       \n"
+            "  4  : Date                                 \n"
+            "  8  : ThreadId                             \n"
+            "  16 : Category                             \n"
+            "  32 : File                                 \n"
+            "  64 : Function                             \n"
+            "  128: EndOfLine                            \n\n"
+            "  Some useful values for context are:       \n"
+            "  26 : (verb+threadId+cat)                  \n"
+            "  30 : (verb+threadId+date+cat)             \n"
+            "  126: (verb+threadId+date+cat+file+fun)    \n"
+            "  254: (verb+threadId+date+cat+file+fun+eol)\n\n"
+            ":param context: A bitfield (sum of described values)."));
 
-      boost::python::def("setLevel", &pysetlevel,
-                         "setLevel(level) -> None\n"
-                         ":param level: The logger level need to be choose between "
-                         "FATAL, ERROR, WARNING, INFO, VERBOSE, DEBUG\n"
-                         "\n"
-                         "Sets the threshold for the logger to level. "
-                         "Logging messages which are less severe than level will be ignored. "
-                         "Note that the logger is created with level INFO.");
-    }
-  }
+  m.def("setLevel", [](LogLevel level) { log::setLogLevel(level); },
+        call_guard<gil_scoped_release>(), "level"_a,
+        doc(
+          "Sets the threshold for the logger to level. "
+          "Logging messages which are less severe than level will be ignored. "
+          "Note that the logger is created with level INFO.\n"
+          ":param level: The minimum log level."));
 }
+} // namespace py
+} // namespace qi

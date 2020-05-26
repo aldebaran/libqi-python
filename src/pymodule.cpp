@@ -1,67 +1,63 @@
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
-#include <boost/python.hpp>
-#include <map>
 
-#include <qi/anyobject.hpp>
-#include <qi/anymodule.hpp>
-#include <qipython/gil.hpp>
+#include <qipython/common.hpp>
 #include <qipython/pymodule.hpp>
 #include <qipython/pyobject.hpp>
-#include <qipython/error.hpp>
-#include <boost/python/raw_function.hpp>
+#include <qipython/pyguard.hpp>
+#include <qi/anyobject.hpp>
+#include <qi/anymodule.hpp>
+#include <pybind11/pybind11.h>
 
-#include "pyobject_p.hpp"
-
-namespace bpy = boost::python;
-
-qiLogCategory("qipy.module");
+namespace py = pybind11;
 
 namespace qi
 {
 namespace py
 {
-  static bpy::object createObjectAdapter(bpy::tuple pyargs, bpy::dict kwargs)
-  {
-    bpy::object pymod = pyargs[0];
-    bpy::str name(pyargs[1]);
-    bpy::list args(pyargs.slice(2, bpy::len(pyargs)));
-    return pymod.attr(name)(*args, **kwargs);
-  }
 
-  static bpy::object pyqimodule(const std::string& name)
-  {
-    qi::AnyModule mod = qi::import(name);
-    bpy::object pymod = makePyQiObject(mod);
-    bpy::object createFun = bpy::raw_function(createObjectAdapter);
+namespace
+{
 
-    bpy::object types = bpy::import("types");
-    bpy::api::setattr(pymod, "createObject", types.attr("MethodType")(createFun, pymod));
-    return pymod;
-  }
-
-  static bpy::list pylistModules()
-  {
-    std::vector<qi::ModuleInfo> vect = qi::listModules();
-    return qi::AnyReference::from(vect).to<bpy::list>();
-  }
-
-  // Python AnyModule Factory
-  qi::AnyModule importPyModule(const qi::ModuleInfo& name)
-  {
-    qiLogInfo() << "import in python not implemented yet";
-    return qi::AnyModule();
-  }
-  QI_REGISTER_MODULE_FACTORY("python", &importPyModule);
-
-  void export_pyobjectfactory()
-  {
-    bpy::def("module", &pyqimodule,
-        "module(moduleName) -> object\n"
-        ":return: an object that represents the requested module\n");
-    bpy::def("listModules", &pylistModules);
-  }
+::py::object call(::py::object obj, ::py::str name,
+                  ::py::args args, ::py::kwargs kwargs)
+{
+  ::py::gil_scoped_acquire lock;
+  return obj.attr(name)(*args, **kwargs);
 }
+
+::py::object getModule(const std::string& name)
+{
+  const auto mod = import(name);
+  const auto pyMod = toPyObject(mod);
+  const ::py::cpp_function callFn(&call, ::py::is_method(pyMod.get_type()),
+                                  ::py::arg("name"));
+
+  const auto types = ::py::module::import("types");
+  ::py::setattr(pyMod, "createObject", types.attr("MethodType")(callFn, pyMod));
+  return pyMod;
 }
+
+::py::list listModules()
+{
+  const auto modules = invokeGuarded<::py::gil_scoped_release>(&qi::listModules);
+  return castToPyObject(AnyReference::from(modules));
+}
+
+} // namespace
+
+void exportObjectFactory(::py::module& m)
+{
+  using namespace ::py;
+
+  gil_scoped_acquire lock;
+
+  m.def("module", &getModule,
+        doc(":returns: an object that represents the requested module.\n"));
+  m.def("listModules", &listModules);
+}
+
+} // namespace py
+} // namespace qi

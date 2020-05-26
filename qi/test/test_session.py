@@ -1,16 +1,24 @@
+#
+# Copyright (C) 2010 - 2020 Softbank Robotics Europe
+#
+# -*- coding: utf-8 -*-
+
 import time
 import qi
 
 isconnected = False
 isdisconnected = False
 
+
 def test_session_make_does_not_crash():
-    session = qi.Session()
+    qi.Session()
+
 
 def test_session_listen_then_close_does_not_crash_or_deadlock():
     session = qi.Session()
     session.listenStandalone('tcp://127.0.0.1:0')
     session.close()
+
 
 def test_session_callbacks():
     def callback_conn():
@@ -43,9 +51,3 @@ def test_session_callbacks():
     time.sleep(0.01)
 
     assert isdisconnected
-
-def main():
-    test_session_callbacks()
-
-if __name__ == "__main__":
-    main()

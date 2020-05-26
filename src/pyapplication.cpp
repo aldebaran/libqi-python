@@ -1,224 +1,146 @@
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
 
-#include <boost/python.hpp>
-#include <boost/thread.hpp>
+#include <pybind11/pybind11.h>
+
+#include <thread>
+#include <chrono>
+#include <future>
 
 #include <qi/applicationsession.hpp>
 #include <qi/atomic.hpp>
 #include <qi/os.hpp>
 #include <qi/log.hpp>
 
-#include <qipython/error.hpp>
-#include <qipython/gil.hpp>
+#include <qipython/common.hpp>
 #include <qipython/pyapplication.hpp>
 #include <qipython/pysession.hpp>
-#include <qipython/pythreadsafeobject.hpp>
 
-qiLogCategory("qipy.application");
+qiLogCategory("qi.python.application");
 
-namespace qi {
-  namespace py {
+namespace py = pybind11;
 
-    //convert a python list to an old C argc/argv pair.
-    //the dtor destroy argc/argv
-    class ArgumentConverter {
-    public:
-      ArgumentConverter() {
-        argc = 0;
-        argv = new char*[2];
-        argv[0] = 0;
-        argv[1] = 0;
+namespace qi
+{
+namespace py
+{
 
-      }
+namespace
+{
 
-      ArgumentConverter(boost::python::list& args)
-      {
-        argc = boost::python::len(args);
-        argv = new char*[argc + 1];
-        for (int i = 0; i < argc; ++i) {
-          std::string s = boost::python::extract<std::string>(args[i]);
-          argv[i] = qi::os::strdup(s.c_str());
-          qiLogVerbose() << "arg[:" << i << "]" << argv[i];
-        }
-      }
+template<typename F, typename... ArgsExtras>
+struct WithArgcArgv
+{
+  F f;
 
-      void update(boost::python::list& args) {
-        /* Update the input list */
-        for (int i = boost::python::len(args); i > 0; --i) {
-          args.pop(i - 1);
-        }
-        for (int i = 0; i < argc; ++i) {
-          args.insert(i, std::string(argv[i]));
-        }
-      }
+  auto operator()(::py::list args, ArgsExtras... extras) const
+    -> decltype(f(std::declval<int&>(),
+                  std::declval<char**&>(),
+                  std::forward<ArgsExtras>(extras)...))
+  {
+    std::vector<std::string> argsStr;
+    std::transform(args.begin(), args.end(), std::back_inserter(argsStr),
+                   [](const ::py::handle& arg){ return arg.cast<std::string>(); });
 
-      ~ArgumentConverter() {
-        for (int i = 0; i < argc; ++i) {
-          /* Free C argument */
-          free(argv[i]);
-        }
-        delete[] argv;
-        argv = 0;
-        argc = 0;
-      }
+    std::vector<char*> argsCStr;
+    std::transform(argsStr.begin(), argsStr.end(), std::back_inserter(argsCStr),
+                   [](const std::string& s) { return const_cast<char*>(s.c_str()); });
 
-      int    argc;
-      char** argv;
-    };
+    int argc = argsCStr.size();
+    char** argv = argsCStr.data();
 
-    void destroylater(boost::shared_ptr<qi::Application>, qi::Atomic<int> *doClose)
-    {
-      //wait til ~PyApplication have been destroyed
-      while (!(**doClose))
-        qi::os::msleep(1);
-      delete doClose;
-    }
+    auto res = f(argc, argv, std::forward<ArgsExtras>(extras)...);
 
-    template<typename T> void destroyApplication(T& app)
-    {
-      qi::py::GILScopedUnlock _unlock;
-      /* force the destruction to happend into the other thread */
-      qi::Atomic<int>* goClosing = new qi::Atomic<int>;
-      boost::thread(&destroylater, app, goClosing);
-      app.reset();
-      ++(*goClosing);
-    }
+    // The constructor of `qi::Application` modifies its parameters to
+    // consume the arguments it processed. After the constructor, the first
+    // `argc` elements of `argv` are the arguments that were not recognized by
+    // the application. We then have to propagate the consumption of the
+    // elements to Python, by clearing the list then reinserting the elements
+    // that were left.
+    args.attr("clear")();
+    for (std::size_t i = 0; i < static_cast<std::size_t>(argc); ++i)
+      args.insert(i, argv[i]);
 
-    class PyApplication {
-    public:
-      PyApplication(boost::python::list args) {
-        ArgumentConverter ac(args);
+    return res;
+  }
+};
 
-        _app = boost::shared_ptr<qi::Application>(new qi::Application(ac.argc, ac.argv));
-        ac.update(args);
-      }
+template<typename... ExtraArgs, typename F>
+WithArgcArgv<ka::Decay<F>, ExtraArgs...> withArgcArgv(F&& f)
+{
+  return { std::forward<F>(f) };
+}
 
-      //delay the destruction of _app to a thread, because the destruction can lock
-      //app destroy eventloop that wait for all socket/server to be destroyed.
-      //that way python can continue to destroy object, and eventually destroy the last socket/server
-      //that will release the thread finally
-      ~PyApplication() {
-        destroyApplication(_app);
-      }
+} // namespace
 
-      void run() {
-        qi::py::GILScopedUnlock _unlock;
-        _app->run();
-      }
+void exportApplication(::py::module& m)
+{
+  using namespace ::py;
+  using namespace ::py::literals;
 
-      void stop() {
-        qi::py::GILScopedUnlock _unlock;
-        _app->stop();
-      }
+  gil_scoped_acquire lock;
 
-    private:
-      boost::shared_ptr<qi::Application> _app;
-    };
+  class_<Application, std::unique_ptr<Application, DeleteInOtherThread>>(
+    m, "Application")
+    .def(init(withArgcArgv<>([](int& argc, char**& argv) {
+           gil_scoped_release unlock;
+           return new Application(argc, argv);
+         })),
+         "args"_a)
+    .def_static("run", &Application::run, call_guard<gil_scoped_release>())
+    .def_static("stop", &Application::stop, call_guard<gil_scoped_release>());
 
-    void export_pyapplication() {
-      boost::python::class_<PyApplication>("Application", boost::python::init<boost::python::list>())
-          .def("run", &PyApplication::run)
-          .def("stop", &PyApplication::stop);
-    }
+  class_<ApplicationSession,
+         std::unique_ptr<ApplicationSession, DeleteInOtherThread>>(
+    m, "ApplicationSession")
 
-    class PyApplicationSession {
-    public:
-      PyApplicationSession(boost::python::list args, bool autoExit, const std::string& url) {
-        ArgumentConverter ac(args);
-        qi::ApplicationSession::Config config;
-        if (!autoExit)
-          config.setOption(qi::ApplicationSession::Option_NoAutoExit);
-        if (!url.empty())
-          config.setConnectUrl(url);
-        _app = boost::shared_ptr<qi::ApplicationSession>(new qi::ApplicationSession(ac.argc, ac.argv, config));
-        //update args (some can have been removed by the ApplicationSession ctor)
-        ac.update(args);
-        _ses = makePySession(_app->session());
-      }
+    .def(init(withArgcArgv<bool, const std::string&>(
+           [](int& argc, char**& argv, bool autoExit, const std::string& url) {
+             gil_scoped_release unlock;
+             ApplicationSession::Config config;
+             if (!autoExit)
+               config.setOption(qi::ApplicationSession::Option_NoAutoExit);
+             if (!url.empty())
+               config.setConnectUrl(url);
+             return new ApplicationSession(argc, argv, config);
+           })),
+         "args"_a, "autoExit"_a, "url"_a)
 
-      ~PyApplicationSession() {
-        destroyApplication(_app);
-      }
+    .def("run", &ApplicationSession::run, call_guard<gil_scoped_release>(),
+         doc("Block until the end of the program (call "
+             ":py:func:`qi.ApplicationSession.stop` to end the program)."))
 
-      void run() {
-        qi::py::GILScopedUnlock _unlock;
-        _app->run();
-      }
+    .def_static("stop", &ApplicationSession::stop,
+                call_guard<gil_scoped_release>(),
+                doc(
+                  "Ask the application to stop, the run function will return."))
 
-      void stop() {
-        qi::py::GILScopedUnlock _unlock;
-        _app->stop();
-      }
+    .def("start", &ApplicationSession::startSession,
+         call_guard<gil_scoped_release>(),
+         doc("Start the connection of the session, once this function is "
+             "called everything is fully initialized and working."))
 
-      boost::python::object session() {
-        return _ses;
-      }
+    .def_static("atRun", &ApplicationSession::atRun,
+                call_guard<gil_scoped_release>(), "func"_a,
+                doc(
+                  "Add a callback that will be executed when run() is called."))
 
-      boost::python::object url() {
-        return boost::python::object(_app->url().str());
-      }
+    .def_property_readonly("url",
+                           [](const ApplicationSession& app) {
+                             return app.url().str();
+                           },
+                           call_guard<gil_scoped_release>(),
+                           doc("The url given to the Application. It's the url "
+                               "used to connect the session."))
 
+    .def_property_readonly("session",
+                           [](const ApplicationSession& app) {
+                             return makeSession(app.session());
+                           },
+                           doc("The session associated to the application."));
+}
 
-      void atRun(boost::python::object callable)
-      {
-        if (!PyCallable_Check(callable.ptr()))
-          throw std::runtime_error("qi.Application.atRun requires a callable argument");
-
-        PyThreadSafeObject safeCallable(callable);
-
-        auto callback = [safeCallable]
-        {
-          GILScopedLock _lock;
-          try
-          {
-            safeCallable.object()();
-          }
-          catch (const boost::python::error_already_set&)
-          {
-            throw std::runtime_error(PyFormatError());
-          }
-        };
-
-        GILScopedUnlock _unlock;
-        _app->atRun(std::move(callback));
-      }
-
-
-      void start() {
-        qi::py::GILScopedUnlock _unlock;
-        _app->startSession();
-      }
-
-    private:
-      boost::python::object                     _ses;
-      boost::shared_ptr<qi::ApplicationSession> _app;
-      boost::shared_ptr<qi::Session>            _sesPtr;
-    };
-
-    void export_pyapplicationsession() {
-      boost::python::class_<PyApplicationSession>("ApplicationSession", boost::python::init<boost::python::list, bool, std::string>())
-          .def("run", &PyApplicationSession::run,
-               "run()\n"
-               "Block until the end of the program. (call :py:func:`qi.ApplicationSession.stop` to end the program)")
-          .def("stop", &PyApplicationSession::stop,
-               "stop()\n"
-               "Ask the application to stop, the run function will return.")
-          .def("start", &PyApplicationSession::start,
-               "start()\n"
-               "Start the connection of the session, once this function is called everything is fully initialized and working.")
-          .def("atRun", &PyApplicationSession::atRun,
-               "atRun()\n",
-               "Add a callback that will be executed when run() is called")
-          .add_property("url", &PyApplicationSession::url,
-                        "url\n"
-                        "The url given to the Application. It's the url used to connect the session")
-          .add_property("session", &PyApplicationSession::session,
-                        "session\n"
-                        "The session associated to the application")
-          ;
-    }
-  } // !py
-} // !qi
+} // namespace py
+} // namespace qi

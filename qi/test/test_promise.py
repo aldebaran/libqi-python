@@ -1,30 +1,29 @@
-#!/usr/bin/env python
-##
-## Author(s):
-##  - Cedric GESTES <gestes@aldebaran-robotics.com>
-##  - Vincent Barbaresi <vbarbaresi@aldebaran-robotics.com>
-##
-## Copyright (C) 2013 Aldebaran Robotics
+#
+# Copyright (C) 2010 - 2020 Softbank Robotics Europe
+#
+# -*- coding: utf-8 -*-
 
 import time
 import threading
 import pytest
-
-from qi import Promise, PromiseNoop, Future, futureBarrier, runAsync
+from qi import Promise, Future, futureBarrier, runAsync
 
 pytest_plugins = ("timeout",)
 
+
 def waiterSetValue(promise, waiter):
-    #time.sleep(t)
+    # time.sleep(t)
     waiter.wait()
     try:
         promise.setValue("mjolk")
-    except:
+    except Exception:
         pass
+
 
 def waitSetValue(p, t=0.01):
     time.sleep(t)
     p.setValue("mjolk")
+
 
 def test_many_futures_create():
     def wait(p):
@@ -35,6 +34,7 @@ def test_many_futures_create():
     for f in fs:
         assert f.hasValue()
         assert f.value() == 1337
+
 
 def test_future_wait():
     p = Promise()
@@ -49,14 +49,15 @@ def test_many_futures_wait_cancel():
     def cancel(p):
         try:
             p.setValue("Kappa")
-        except:
-            pass #ok: cancel called many times
+        except Exception:
+            pass  # ok: cancel called many times
 
-    waiter = Promise();
+    waiter = Promise()
     ps = [Promise(cancel) for _ in range(50)]
     fs = [p.future() for p in ps]
     for p in ps:
-        threading.Thread(target=waiterSetValue, args=[p, waiter.future()]).start()
+        threading.Thread(target=waiterSetValue, args=[
+                         p, waiter.future()]).start()
     # Cancel only one future
     fs[25].cancel()
     waiter.setValue(None)
@@ -72,14 +73,15 @@ def test_many_promises_wait_cancel():
     def cancel(p):
         try:
             p.setValue("Kappa")
-        except:
-            pass #ok: cancel called many times
+        except Exception:
+            pass  # ok: cancel called many times
 
-    waiter = Promise();
+    waiter = Promise()
     ps = [Promise(cancel) for _ in range(50)]
     fs = [p.future() for p in ps]
     for p in ps:
-        threading.Thread(target=waiterSetValue, args=[p, waiter.future()]).start()
+        threading.Thread(target=waiterSetValue, args=[
+                         p, waiter.future()]).start()
     # Cancel only one promise
     ps[25].setCanceled()
     waiter.setValue(None)
@@ -92,17 +94,13 @@ def test_many_promises_wait_cancel():
         else:
             assert f.value() == "mjolk"
 
-def test_future_cancel_request_noop():
-    promise = Promise(PromiseNoop)
-    future = promise.future()
-    future.cancel()
-    assert promise.isCancelRequested()
 
 def test_future_cancel_request():
     promise = Promise()
     future = promise.future()
     future.cancel()
     assert promise.isCancelRequested()
+
 
 def test_future_no_timeout():
     p = Promise()
@@ -182,6 +180,7 @@ def test_future_callback():
     assert not f.isCanceled()
     assert f.isFinished()
 
+
 def test_future_then():
 
     def callback(f):
@@ -197,6 +196,7 @@ def test_future_then():
     assert f2.isFinished()
     assert f2.value() == 4242
 
+
 def test_future_then_throw():
 
     def callback(f):
@@ -210,7 +210,8 @@ def test_future_then_throw():
     p.setValue(1337)
     f2.wait(1000)
     assert f2.isFinished()
-    assert f2.error().endswith("RuntimeError: lol\n")
+    assert "RuntimeError: lol" in f2.error()
+
 
 def test_future_andthen():
 
@@ -225,6 +226,7 @@ def test_future_andthen():
     f2.wait(1000)
     assert f2.isFinished()
     assert f2.value() == 4242
+
 
 def test_future_andthen_error():
     global called
@@ -244,6 +246,7 @@ def test_future_andthen_error():
     assert f2.error() == "errlol"
     time.sleep(0.1)
     assert not called
+
 
 def test_future_andthen_cancel():
     global called
@@ -266,11 +269,15 @@ def test_future_andthen_cancel():
     time.sleep(0.1)
     assert not called
 
+
 called1, called2 = "", ""
+
+
 def test_future_two_callbacks():
 
     result1 = Promise()
     result2 = Promise()
+
     def callback1(f):
         global called1
         called1 = "1"
@@ -325,10 +332,11 @@ def test_future_exception():
 
     f.addCallback(raising)
     p.setValue(42)
+    # This test doesn't assert, it's only segfault check
+    # No segfault => no bug
 
-# This test doesn't assert, it's only segfault check
-# No segfault => no bug
-def test_future_many_callback(nbr_fut = 10000):
+
+def make_future_callback(nbr_fut):
     def callback(f):
         pass
 
@@ -338,29 +346,33 @@ def test_future_many_callback(nbr_fut = 10000):
         f.addCallback(callback)
         p.setValue(0)
 
-# This test is ok
-import threading
+
+def test_future_many_callback():
+  make_future_callback(10000)
+
+
 def test_many_callback_threaded():
     nbr_threads = 100
-    thr_list = list()
+    thr_list = []
     for i in range(nbr_threads):
-        thr = threading.Thread(target=test_future_many_callback, kwargs={"nbr_fut": 10})
+        thr = threading.Thread(
+            target=make_future_callback, kwargs={"nbr_fut": 10})
         thr_list.append(thr)
 
-    for i in range(nbr_threads):
-        thr_list[i].start()
+    for thr in thr_list:
+        thr.start()
 
-    for i in range(nbr_threads):
-        thr_list[i].join()
+    for thr in thr_list:
+        try:
+          thr.join()
+        except Exception as ex:
+          pytest.fail(str(ex))
 
-    for i in range(nbr_threads):
-        if thr_list[i].isAlive():
-            print("IT IS ALIIIIVE: " + str(i))
-    print("finish")
 
 def test_future_init():
     fut = Future(30)
     assert fut.value() == 30
+
 
 def test_future_unwrap():
     prom = Promise()
@@ -368,6 +380,7 @@ def test_future_unwrap():
     prom.setValue(Future(42))
 
     assert future.value() == 42
+
 
 def test_future_unwrap_cancel():
     prom = Promise()
@@ -384,12 +397,14 @@ def test_future_unwrap_cancel():
     time.sleep(0.1)
     assert future.isCanceled()
 
+
 def test_future_unwrap_notfuture():
     prom = Promise()
     future = prom.future().unwrap()
     prom.setValue(42)
 
     assert future.hasError()
+
 
 def test_future_barrier():
     proms = [Promise() for x in range(2)]
@@ -400,6 +415,7 @@ def test_future_barrier():
     futs = f.value()
     for fut in futs:
         assert fut.value() == 0
+
 
 def test_future_barrier_cancel():
     proms = [Promise() for x in range(2)]
@@ -412,6 +428,7 @@ def test_future_barrier_cancel():
     futs = f.value()
     assert futs[0].value() == 0
     assert futs[1].isCanceled()
+
 
 @pytest.mark.timeout(5)
 def test_promise_concurrent_setvalue_setcanceled():
@@ -427,27 +444,3 @@ def test_promise_concurrent_setvalue_setcanceled():
             promise.setCanceled()
         except RuntimeError:
             pass
-
-def main():
-    test_many_futures_create()
-    test_future_wait()
-    test_many_futures_wait_cancel()
-    test_many_promises_wait_cancel()
-    test_future_no_timeout()
-    test_future_timeout_immediate()
-    test_future_timeout()
-    test_future_error()
-    test_future_cancel_exception()
-    test_future_callback()
-    test_promise_re_set()
-    test_future_exception()
-    test_future_two_callbacks()
-    test_future_callback_noargs()
-    test_future_many_callback()
-    #test_many_callback_threaded()
-    test_future_barrier()
-    test_future_barrier_cancel()
-    test_promise_concurrent_setvalue_setcanceled()
-
-if __name__ == "__main__":
-    main()

@@ -1,42 +1,45 @@
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
+
 #include <qipython/pyclock.hpp>
+#include <qipython/common.hpp>
 #include <qi/clock.hpp>
-#include <qi/log.hpp>
+#include <pybind11/pybind11.h>
 
-qiLogCategory("qipy.clock");
+namespace py = pybind11;
 
-namespace qi {
-namespace py {
+namespace qi
+{
+namespace py
+{
 
-  int64_t pyClockNow()
-  {
-    return qi::Clock::now().time_since_epoch().count();
-  }
-  int64_t pySteadyClockNow()
-  {
-    return qi::SteadyClock::now().time_since_epoch().count();
-  }
-  int64_t pySystemClockNow()
-  {
-    return qi::SystemClock::now().time_since_epoch().count();
-  }
+namespace
+{
 
-  void export_pyclock() {
-    boost::python::def("clockNow", &pyClockNow,
-        "clockNow() -> Int\n"
-        ":return: current timestamp on qi::Clock, as a number of nanoseconds\n"
-        );
-    boost::python::def("steadyClockNow", &pySteadyClockNow,
-        "steadyClockNow() -> Int\n"
-        ":return: current timestamp on qi::SteadyClock, as a number of nanoseconds\n"
-        );
-    boost::python::def("systemClockNow", &pySystemClockNow,
-        "systemClockNow() -> Int\n"
-        ":return: current timestamp on qi::SystemClock, as a number of nanoseconds\n"
-        );
-  }
+template<typename Clock>
+typename Clock::rep now()
+{
+  return Clock::now().time_since_epoch().count();
 }
+
+} // namespace
+
+void exportClock(::py::module& m)
+{
+  using namespace ::py;
+  using namespace ::py::literals;
+
+  gil_scoped_acquire lock;
+
+  m.def("clockNow", &now<Clock>,
+        doc(":returns: current timestamp on qi::Clock, as a number of nanoseconds"));
+  m.def("steadyClockNow", &now<SteadyClock>,
+        doc(":returns: current timestamp on qi::SteadyClock, as a number of nanoseconds"));
+  m.def("systemClockNow", &now<SystemClock>,
+        doc(":returns: current timestamp on qi::SystemClock, as a number of nanoseconds"));
 }
+
+} // namespace py
+} // namespace qi

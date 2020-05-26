@@ -1,11 +1,10 @@
 #include <iostream>
 #include <qi/anymodule.hpp>
 #include <qi/session.hpp>
-#include "api.hpp"
 
-qiLogCategory("moduletest");
+qiLogCategory("qi.python.moduletest");
 
-class MODULE_TEST_API Mouse
+class Mouse
 {
   public:
     int squeak();
@@ -21,7 +20,7 @@ int Mouse::squeak()
   return 18;
 }
 
-class MODULE_TEST_API Cat
+class Cat
 {
   public:
     Cat();

@@ -1,14 +1,12 @@
-#!/usr/bin/env python
-##
-## Author(s):
-##  - Vincent Barbaresi <vbarbaresi@aldebaran-robotics.com>
-##
-## Copyright (C) 2013 Aldebaran Robotics
+#
+# Copyright (C) 2010 - 2020 Softbank Robotics Europe
+#
+# -*- coding: utf-8 -*-
 
 import time
 import qi
-import sys
 import pytest
+
 
 class TestService:
     def display(self, t):
@@ -57,10 +55,7 @@ def test_unicode_strings():
     assert mystring == wide_string
 
     # String with many unicode chars
-    if sys.version_info[0] == 2:
-        unicode_string = ''.join([unichr(i) for i in range(1, 50000)])
-    else:
-        unicode_string = ''.join([chr(i) for i in range(1, 50000)])
+    unicode_string = ''.join([chr(i) for i in range(1, 50000)])
     service.display(unicode_string)
     time.sleep(0.01)
     s.close()
@@ -86,11 +81,7 @@ def test_builtin_types():
     assert f == 0  # is False ?
 
     # int
-    import sys
-    if sys.version < '3':
-        integer_types = (int, long,)
-    else:
-        integer_types = (int,)
+    integer_types = (int,)
     assert isinstance(service.display(42), integer_types)
     assert service.display(42) == 42
 
@@ -124,14 +115,8 @@ def test_builtin_types():
     assert service.display(bytearray("lol", encoding="ascii")) == "lol"
 
     # buffer (not implemented)
-    try:
-        import sys
-        if sys.version >= '3':
-            service.display(memoryview("lol".encode()))
-        else:
-            service.display(buffer("lol"))
-    except RuntimeError:
-        pass  # OK
+    with pytest.raises(RuntimeError):
+        service.display(memoryview("lol".encode()))
 
     time.sleep(0.01)
     s.close()
@@ -208,19 +193,7 @@ def test_type():
     assert qi.Object != qi.Int8()
     assert qi.Object != qi.Int32()
     assert qi.Int8() != qi.UInt8()
-    assert (qi.Int8() != qi.Int8()) == False
-    assert (qi.Int8 != qi.Int8) == False
-    assert (qi.Int8 != qi.Int8()) == False
-    assert (qi.Int8() != qi.Int8) == False
-
-
-def main():
-    test_throwing_callback()
-    test_unicode_strings()
-    test_builtin_types()
-    test_object_types()
-    test_qi_object_instance()
-    test_type()
-
-if __name__ == "__main__":
-    main()
+    assert not (qi.Int8() != qi.Int8())
+    assert not (qi.Int8 != qi.Int8)
+    assert not (qi.Int8 != qi.Int8())
+    assert not (qi.Int8() != qi.Int8)
