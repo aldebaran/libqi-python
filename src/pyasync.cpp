@@ -103,13 +103,13 @@ namespace qi { namespace py {
     void export_pyasync() {
       boost::python::object async = boost::python::raw_function(&pyasyncParamShrinker, 1);
 
-      async.attr("__doc__") = "async(callback [, delay=usec] [, arg1, ..., argn]) -> future\n"
+      async.attr("__doc__") = "runAsync(callback [, delay=usec] [, arg1, ..., argn]) -> future\n"
                               ":param callback: the callback that will be called\n"
                               ":param delay: an optional delay in microseconds\n"
                               ":return: a future with the return value of the function\n"
                               "\n";
 
-      boost::python::def("async", async);
+      boost::python::def("runAsync", async);
 
       boost::python::class_<PyPeriodicTask, boost::shared_ptr<PyPeriodicTask>, boost::noncopyable >("PeriodicTask")
         .def(boost::python::init<>())

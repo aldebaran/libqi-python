@@ -31,7 +31,6 @@ def load_libqipython():
             "libicudata.so",
             "libicuuc.so",
             "libicui18n.so",
-            "libboost_python.so",
             "libboost_system.so",
             "libboost_chrono.so",
             "libboost_program_options.so",
@@ -53,8 +52,10 @@ def load_libqipython():
             ]
     if sys.version_info[0] == 2:
         deps.append("libqipython.so")
+        deps.append("libboost_python.so")
     else:
         deps.append("libqipython3.so")
+        deps.append("libboost_python3.so")
     qilib = get_qilib_path()
     this_dir = os.path.abspath(os.path.dirname(qilib))
     for dep in deps:
@@ -90,7 +91,7 @@ from _qi import Application as _Application
 from _qi import ApplicationSession as _ApplicationSession
 from _qi import ( FutureState, FutureTimeout, Future, futureBarrier, Promise,
                   Property, Session, Signal,
-                  async, PeriodicTask)
+                  runAsync, PeriodicTask)
 from _qi import ( clockNow, steadyClockNow, systemClockNow )
 from _qi import ( module, listModules )
 from . import path
@@ -167,7 +168,7 @@ __all__ = ["FutureState",
            "Signal",
            "createObject",
            "registerObjectFactory",
-           "async",
+           "runAsync",
            "Void", "Bool", "Int8", "UInt8", "Int16", "UInt16", "Int32", "UInt32", "Int64", "UInt64",
            "Float", "Double", "String", "List", "Optional", "Map", "Struct", "Object", "Dynamic", "Buffer", "AnyArguments",
            "typeof", "isinstance",
@@ -178,6 +179,11 @@ __all__ = ["FutureState",
            "module", "listModules",
            "clockNow", "steadyClockNow", "systemClockNow"
 ]
+
+
+if sys.version_info < (3,7):
+    globals()['async'] = runAsync
+    __all__.append('async')
 
 import atexit
 atexit.register(_stopApplication)

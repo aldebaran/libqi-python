@@ -11,24 +11,38 @@ qi_add_optional_package(PYTHON)
 qi_add_optional_package(PYTHON3)
 qi_add_optional_package(BOOST_PYTHON)
 qi_add_optional_package(BOOST_PYTHON3)
-# Generate each version in a separated build folder.
-# (include_directories clash otherwise)
 
 add_subdirectory(tests)
 
-# Assume at least python-2.7 is installed.
-set(pyver "")
-add_subdirectory(py2py3 "python2")
+# Prefer Python3 when available, otherwise fallback to Python2.
+if(WITH_PYTHON3)
+  message(STATUS "Python3: libraries found (\"${PYTHON3_LIBRARIES}\")")
+else()
+  message(STATUS "Python3: libraries not found")
+endif()
 
+if(WITH_BOOST_PYTHON3)
+  message(STATUS "boost-python3: libraries found (\"${BOOST_PYTHON3_LIBRARIES}\")")
+else()
+  message(STATUS "boost-python3: libraries no found")
+endif()
+
+set(pyver "")
 if (WITH_PYTHON3 AND WITH_BOOST_PYTHON3)
   set(pyver "3")
-  add_subdirectory(py2py3 "python3")
+elseif(WITH_PYTHON AND WITH_BOOST_PYTHON)
+  message(STATUS "Either Python3 or boost-python3 libraries are \
+missing, falling back to building for Python2")
+else()
+  message(FATAL_ERROR "Neither Python3/boost-python3 nor \
+Python2/boost-python libraries have been found")
 endif()
+add_subdirectory(py2py3 python)
 
 
 qi_create_lib(qimodule_python_plugin SHARED src/qimodule_python_plugin.cpp
               SUBFOLDER qi/plugins/
-              DEPENDS qi qipython)
+              DEPENDS qi qipython${pyver})
 
 if (QI_WITH_TESTS AND WITH_PYTHON AND NOT WIN32 AND NOT APPLE)
   # run py.test.

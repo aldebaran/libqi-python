@@ -13,12 +13,12 @@ def err():
 
 
 def test_async_fun():
-    f = qi.async(add, 21, 21)
+    f = qi.runAsync(add, 21, 21)
     assert(f.value() == 42)
 
 
 def test_async_error():
-    f = qi.async(err)
+    f = qi.runAsync(err)
     assert(f.hasError() == True)
     assert(f.error().endswith("RuntimeError: sdsd\n"))
 
@@ -35,15 +35,15 @@ class Adder:
 
 def test_async_meth():
     ad = Adder()
-    f = qi.async(ad.add, 21)
+    f = qi.runAsync(ad.add, 21)
     assert(f.value() == 21)
-    f = qi.async(ad.add, 21)
+    f = qi.runAsync(ad.add, 21)
     assert(f.value() == 42)
-    f = qi.async(ad.val)
+    f = qi.runAsync(ad.val)
     assert(f.value() == 42)
 
 def test_async_delay():
-    f = qi.async(add, 21,  21, delay=1000)
+    f = qi.runAsync(add, 21,  21, delay=1000)
     assert(f.value() == 42)
 
 result = 0
@@ -64,7 +64,7 @@ def test_periodic_task():
     assert cur == result
 
 def test_async_cancel():
-    f = qi.async(fail, delay=1000000)
+    f = qi.runAsync(fail, delay=1000000)
     assert(f.isCancelable())
     f.cancel()
     f.wait()
@@ -73,7 +73,7 @@ def test_async_cancel():
     assert(f.isCanceled())
 
 def test_async_nested_future():
-    f = qi.async(lambda: qi.Future(42))
+    f = qi.runAsync(lambda: qi.Future(42))
     assert isinstance(f, qi.Future)
     assert isinstance(f.value(), qi.Future)
 

@@ -15,8 +15,13 @@ namespace py
 const char* const objectAttributeStrandName =  "__qi_strand__";
 const char* const objectAttributeThreadingName =  "__qi_threading__";
 const char* const objectAttributeThreadingValueMulti = "multi";
-const char* const objectAttributeImSelfName = "im_self";
-
+const char* const objectAttributeImSelfName =
+#if PY_MAJOR_VERSION >= 3
+  "__self__"
+#else
+  "im_self"
+#endif
+  ;
 
 namespace {
 

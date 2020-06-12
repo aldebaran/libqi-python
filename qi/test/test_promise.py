@@ -10,7 +10,7 @@ import time
 import threading
 import pytest
 
-from qi import Promise, PromiseNoop, Future, futureBarrier, async
+from qi import Promise, PromiseNoop, Future, futureBarrier, runAsync
 
 pytest_plugins = ("timeout",)
 
@@ -421,7 +421,7 @@ def test_promise_concurrent_setvalue_setcanceled():
         promise = Promise()
         # this seemingly does nothing but greatly increases chances of lock:
         promise.future().addCallback(lambda fut: None)
-        async(promise.setValue, None, delay=delay_in_microsec)
+        runAsync(promise.setValue, None, delay=delay_in_microsec)
         time.sleep(delay_in_sec)
         try:
             promise.setCanceled()

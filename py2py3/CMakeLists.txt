@@ -60,36 +60,17 @@ qi_use_lib(qipython${pyver} ASSUME_SYSTEM_INCLUDE BOOST_PYTHON${pyver} PYTHON${p
 
 qi_stage_lib(qipython${pyver})
 
-qi_install_python(${CMAKE_CURRENT_SOURCE_DIR}/../qi VERSION ${pyver} KEEP_RELATIVE_PATHS)
+qi_install_python(${CMAKE_CURRENT_SOURCE_DIR}/../qi VERSION "${pyver}" KEEP_RELATIVE_PATHS)
 
-if("${pyver}" STREQUAL "")
-  qi_create_python_ext(_qi ../src/boostpymain.cpp)
-  qi_install_python(${CMAKE_CURRENT_SOURCE_DIR}/../qi KEEP_RELATIVE_PATHS)
-  qi_use_lib(_qi qipython)
-  # Hack for embedded python interpreter to find the sources of
-  # pure python 'qi' library. (It uses qi::path::librariesPath())
-  add_custom_target(copy-python-qi ALL
-    COMMAND ${CMAKE_COMMAND}
-    -E copy_directory
-    "${CMAKE_SOURCE_DIR}/qi"
-    "${QI_SDK_DIR}/${QI_SDK_LIB}/qi"
-  )
-else()
-  # Hack until qibuild fully supports python3
-  add_library(_qi3 SHARED ../src/boostpymain.cpp)
-  if(UNIX)
-    set_target_properties(_qi3
-      PROPERTIES
-      SUFFIX ".so"
-      )
-  endif()
-  set_target_properties(_qi3
-      PROPERTIES PREFIX ""
-      OUTPUT_NAME "_qi"
-      LIBRARY_OUTPUT_DIRECTORY
-        "${QI_SDK_DIR}/${QI_SDK_LIB}/python3.4/site-packages"
-  )
-  qi_use_lib(_qi3 qipython3)
-endif()
+qi_create_python_ext(_qi ../src/boostpymain.cpp VERSION "${pyver}")
+qi_use_lib(_qi qipython${pyver})
+# Hack for embedded python interpreter to find the sources of
+# pure python 'qi' library. (It uses qi::path::librariesPath())
+add_custom_target(copy-python-qi ALL
+  COMMAND ${CMAKE_COMMAND}
+  -E copy_directory
+  "${CMAKE_SOURCE_DIR}/qi"
+  "${QI_SDK_DIR}/${QI_SDK_LIB}/qi"
+)
 
 add_subdirectory(../testspy ${CMAKE_CURRENT_BINARY_DIR}/testspy)

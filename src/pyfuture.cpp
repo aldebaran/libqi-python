@@ -260,7 +260,12 @@ namespace qi {
 
       boost::python::enum_<qi::FutureTimeout>("FutureTimeout")
           .value("None", qi::FutureTimeout_None)
-          .value("Infinite", qi::FutureTimeout_Infinite);
+          // There is a bug in boost::python that makes the code segfault when we export an enum
+          // value that equals to INT_MAX on a 32bits system.
+          // See https://github.com/boostorg/python/issues/312 for more details.
+          // This is a big hack as a workaround, we consider that "INT_MAX / 2" is still big enough
+          // to be acceptable as "Infinite".
+          .value("Infinite", static_cast<qi::FutureTimeout>(qi::FutureTimeout_Infinite / 2));
 
 
       boost::python::class_<Promise<AnyValue>>("Promise", boost::python::no_init)

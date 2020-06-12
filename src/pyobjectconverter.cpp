@@ -314,7 +314,7 @@ class PyObjectLongTypeInterface: public PyObjectTypeInterface<qi::IntTypeInterfa
 {
 public:
   PYTYPE_GETSET(int64_t, LongLong, Long)
-  virtual unsigned int size() { return sizeof(long); }
+  virtual unsigned int size() { return sizeof(long long); }
   virtual bool isSigned() { return true; }
   PYTYPE_GETTYPE(PyObjectLongTypeInterface)
 };

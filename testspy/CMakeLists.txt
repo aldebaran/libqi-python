@@ -14,10 +14,10 @@ elseif(MSVC)
 endif()
 
 if(UNIX)
-  get_target_property(sdkpydir _qi${pyver} LIBRARY_OUTPUT_DIRECTORY)
+  get_target_property(sdkpydir _qi LIBRARY_OUTPUT_DIRECTORY)
 elseif(WIN32)
   # set in qibuild, same as DEBUG
-  get_target_property(sdkpydir _qi${pyver} RUNTIME_OUTPUT_DIRECTORY_RELEASE)
+  get_target_property(sdkpydir _qi RUNTIME_OUTPUT_DIRECTORY_RELEASE)
 endif()
 
 qi_create_gmock(
