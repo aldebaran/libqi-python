@@ -1,3 +1,3 @@
 [build-system]
 requires = ["setuptools>=47.1", "wheel>=0.34", "scikit-build>=0.10.1",
-            "cmake>=3.17", "ninja>=1.5"]
+            "cmake>=3.17", "ninja>=1.5", "qibuild>=3.15"]

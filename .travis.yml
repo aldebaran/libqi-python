@@ -1,0 +1,37 @@
+language: python
+
+dist: focal
+python:
+  - "3.5"
+  - "3.6"
+  - "3.7"
+  - "3.8"
+
+jobs:
+  include:
+      - name: "Python on Focal Linux"
+      - name: "Python 3.8.0 on macOS 10.14.6 (XCode 11.3.1)"
+        os: osx
+        osx_image: xcode11.3  # Python 3.8.0 running on macOS 10.14.6
+        language: shell
+        before_install:
+          - ./scripts/install_boost.sh
+
+
+before_install:
+  - wget -q http://sourceforge.net/projects/boost/files/boost/1.64.0/boost_1_64_0.tar.gz/download -O boost_1_64_0.tar.gz
+  - tar xzf boost_1_64_0.tar.gz
+  - cd boost_1_64_0
+  - ./bootstrap.sh --prefix=/usr/local --with-libraries=atomic,date_time,thread,chrono,filesystem,locale,regex,program_options,random
+  - ./b2 -d0 link=shared threading=multi variant=release
+  - sudo ./b2 -d0 install
+
+install:
+  - python3 --version
+  - python3 -m pip install -U pip
+  - python3 -m pip install -U pytest
+  - python3 -m pip install cmake>=3.16 ninja qibuild>=3.15 scikit-build pytest
+
+script:
+  - python3 setup.py bdist_wheel
+  - cmake --build _skbuild/*/cmake-build --target test
