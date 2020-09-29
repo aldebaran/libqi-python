@@ -118,9 +118,9 @@ include(FetchContent)
 # dependencies path.
 if(CMAKE_TOOLCHAIN_FILE)
   message(VERBOSE "Toolchain file is set.")
-  get_filename_component(_tc_dir "${CMAKE_TOOLCHAIN_FILE}" DIRECTORY)
-  get_filename_component(_tc_dir "${_tc_dir}" ABSOLUTE)
-  message(VERBOSE "Toolchain directory is ${_tc_dir}.")
+  get_filename_component(QIPYTHON_TOOLCHAIN_DIR "${CMAKE_TOOLCHAIN_FILE}" DIRECTORY)
+  get_filename_component(QIPYTHON_TOOLCHAIN_DIR "${QIPYTHON_TOOLCHAIN_DIR}" ABSOLUTE)
+  message(VERBOSE "Toolchain directory is ${QIPYTHON_TOOLCHAIN_DIR}.")
 
   # Cross-compiling for Yocto
   if(YOCTO_SDK_TARGET_SYSROOT)
@@ -135,9 +135,9 @@ if(CMAKE_TOOLCHAIN_FILE)
   # Probably compiling for desktop
   else()
     message(VERBOSE "Assuming desktop compilation.")
-    set(_openssl_root "${_tc_dir}/openssl")
-    set(_icu_root "${_tc_dir}/icu")
-    set(_boost_root "${_tc_dir}/boost")
+    set(_openssl_root "${QIPYTHON_TOOLCHAIN_DIR}/openssl")
+    set(_icu_root "${QIPYTHON_TOOLCHAIN_DIR}/icu")
+    set(_boost_root "${QIPYTHON_TOOLCHAIN_DIR}/boost")
     # No definition of _python_root for desktop, we try to use the one
     # installed on the system.
   endif()

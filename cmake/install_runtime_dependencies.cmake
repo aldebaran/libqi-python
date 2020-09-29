@@ -23,10 +23,36 @@ file(GET_RUNTIME_DEPENDENCIES
      MODULES "${QIPYTHON_QI_PYTHON_TARGET_FILE}"
      RESOLVED_DEPENDENCIES_VAR _runtime_dependencies
      UNRESOLVED_DEPENDENCIES_VAR _unresolved_runtime_dependencies
+     CONFLICTING_DEPENDENCIES_PREFIX _conflicting_runtime_dependencies
      # eay32 is a library that comes with OpenSSL.
      PRE_INCLUDE_REGEXES ssl eay crypto icu boost
      PRE_EXCLUDE_REGEXES .*
      DIRECTORIES ${_runtime_dependencies_dirs})
+
+# Processing potential conflicts in dependencies: if there are multiple
+# available choices for one of the runtime dependencies, we prefer one
+# that is in the toolchain. Otherwise we just fallback to the first
+# available path for that dependency.
+if(_conflicting_runtime_dependencies_FILENAMES)
+  message(STATUS "Some conflicts were found for dependencies of qi_python and qi: ${_conflicting_runtime_dependencies_FILENAMES}")
+  foreach(_filename IN LISTS _conflicting_runtime_dependencies_FILENAMES)
+    message(STATUS "Conflicts of dependency '${_filename}': ${_conflicting_runtime_dependencies_${_filename}}")
+    set(_dep)
+    foreach(_path IN LISTS _conflicting_runtime_dependencies_${_filename})
+      if(QIPYTHON_TOOLCHAIN_DIR AND _path MATCHES "^${QIPYTHON_TOOLCHAIN_DIR}")
+        set(_dep "${_path}")
+        message(STATUS "Using file '${_dep}' for dependency '${_filename}' as it is in the toolchain.")
+        break()
+      endif()
+    endforeach()
+    if(NOT _dep)
+      list(GET _conflicting_runtime_dependencies_${_filename} 0 _dep)
+      message(STATUS "Fallback to the first available path '${_dep}' for dependency '${_filename}'.")
+    endif()
+    list(APPEND _runtime_dependencies "${_dep}")
+  endforeach()
+endif()
+
 message(STATUS "The dependencies of qi_python and qi are: ${_runtime_dependencies}")
 if(_unresolved_runtime_dependencies)
   message(STATUS "Some dependencies of qi_python and qi are unresolved: ${_unresolved_runtime_dependencies}")
