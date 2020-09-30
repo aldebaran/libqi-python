@@ -22,10 +22,10 @@ jobs:
 before_install:
   - wget -q http://sourceforge.net/projects/boost/files/boost/1.64.0/boost_1_64_0.tar.gz/download -O boost_1_64_0.tar.gz
   - tar xzf boost_1_64_0.tar.gz
-  - pushd boost_1_64_0 && \
-    ./bootstrap.sh --prefix=/usr/local --with-libraries=atomic,date_time,thread,chrono,filesystem,locale,regex,program_options,random && \
-    ./b2 -d0 link=shared threading=multi variant=release && \
-    sudo ./b2 -d0 install && \
+  - pushd boost_1_64_0 &&
+    ./bootstrap.sh --prefix=/usr/local --with-libraries=atomic,date_time,thread,chrono,filesystem,locale,regex,program_options,random &&
+    ./b2 -d0 link=shared threading=multi variant=release &&
+    sudo ./b2 -d0 install &&
     popd
 
 install:
@@ -35,8 +35,8 @@ install:
 
 script:
   - python3 setup.py bdist_wheel
-  - pushd _skbuild/*/cmake-build && \
-    ctest --output-on-failure && \
+  - pushd _skbuild/*/cmake-build &&
+    ctest --output-on-failure &&
     popd
 
 #deploy:
