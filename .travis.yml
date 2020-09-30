@@ -9,7 +9,6 @@ python:
 
 jobs:
   include:
-      - name: "Python on Focal Linux"
       - name: "Python 3.8.0 on macOS 10.14.6 (XCode 11.3.1)"
         os: osx
         osx_image: xcode11.3  # Python 3.8.0 running on macOS 10.14.6
