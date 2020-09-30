@@ -9,17 +9,15 @@ python:
 
 jobs:
   include:
-      - name: "Python 3.8.5 on macOS 10.13 (XCode 9.4.1)"
+      - name: "Python 3.8 on macOS 10.13 (XCode 9.4.1)"
         os: osx
         osx_image: xcode9.4
         language: shell
-
-addons:
-  homebrew:
-    packages:
-      - openssl
-      - python@3.8.5
-    update: true
+        addons:
+          homebrew:
+            packages:
+              - openssl
+              - python@3.8
 
 before_install:
   - wget -q http://sourceforge.net/projects/boost/files/boost/1.64.0/boost_1_64_0.tar.gz/download -O boost_1_64_0.tar.gz
