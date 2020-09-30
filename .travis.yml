@@ -18,6 +18,7 @@ jobs:
             packages:
               - openssl
               - python@3.8
+            update: true
 
 before_install:
   - wget -q http://sourceforge.net/projects/boost/files/boost/1.64.0/boost_1_64_0.tar.gz/download -O boost_1_64_0.tar.gz
