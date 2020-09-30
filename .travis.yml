@@ -9,10 +9,17 @@ python:
 
 jobs:
   include:
-      - name: "Python 3.8.0 on macOS 10.14.6 (XCode 11.3.1)"
+      - name: "Python 3.8.5 on macOS 10.13 (XCode 9.4.1)"
         os: osx
-        osx_image: xcode11.3  # Python 3.8.0 running on macOS 10.14.6
+        osx_image: xcode9.4
         language: shell
+
+addons:
+  homebrew:
+    packages:
+      - openssl
+      - python@3.8.5
+    update: true
 
 before_install:
   - wget -q http://sourceforge.net/projects/boost/files/boost/1.64.0/boost_1_64_0.tar.gz/download -O boost_1_64_0.tar.gz
@@ -33,3 +40,11 @@ script:
   - pushd _skbuild/*/cmake-build && \
     ctest --output-on-failure && \
     popd
+
+#deploy:
+#  provider: releases
+#  api_key: "GITHUB OAUTH TOKEN"
+#  file: "FILE TO UPLOAD"
+#  skip_cleanup: true
+#  draft: true
+#  overwrite: true
