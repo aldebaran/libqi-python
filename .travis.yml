@@ -9,7 +9,7 @@ python:
 
 jobs:
   include:
-      - name: "Python 3.8 on macOS 10.13 (XCode 10.1)"
+      - name: "Python 3.8"
         os: osx
         osx_image: xcode10.1
         language: shell
@@ -26,7 +26,7 @@ install:
   - wget -q http://sourceforge.net/projects/boost/files/boost/1.64.0/boost_1_64_0.tar.gz/download -O boost_1_64_0.tar.gz
   - tar xzf boost_1_64_0.tar.gz
   - pushd boost_1_64_0 &&
-    ./bootstrap.sh --prefix=/usr/local --with-libraries=atomic,date_time,thread,chrono,filesystem,locale,regex,program_options,random &&
+    ./bootstrap.sh --prefix=$HOME/opt/boost_1_64_0 --with-libraries=atomic,date_time,thread,chrono,filesystem,locale,regex,program_options,random &&
     ./b2 -d0 link=shared threading=multi variant=release &&
     sudo ./b2 -d0 install &&
     popd
@@ -35,7 +35,7 @@ install:
   - python3 -m pip install cmake>=3.16 ninja qibuild>=3.15 scikit-build
 
 script:
-  - python3 setup.py bdist_wheel -- $CMAKE_ARGS
+  - python3 setup.py bdist_wheel -- $CMAKE_ARGS -DBOOST_ROOT=$HOME/opt/boost_1_64_0
   - pushd _skbuild/*/cmake-build &&
     ctest --output-on-failure &&
     popd
