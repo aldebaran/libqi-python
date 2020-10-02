@@ -23,13 +23,7 @@ jobs:
           - CMAKE_ARGS="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1"
 
 install:
-  - wget -q http://sourceforge.net/projects/boost/files/boost/1.64.0/boost_1_64_0.tar.gz/download -O boost_1_64_0.tar.gz
-  - tar xzf boost_1_64_0.tar.gz
-  - pushd boost_1_64_0 &&
-    ./bootstrap.sh --prefix=$HOME/opt/boost_1_64_0 --with-libraries=atomic,date_time,thread,chrono,filesystem,locale,regex,program_options,random &&
-    ./b2 -d0 link=shared threading=multi variant=release &&
-    sudo ./b2 -d0 install &&
-    popd
+  - ci/install_boost.sh
   - python3 --version
   - python3 -m pip install -U pip pytest pytest-timeout
   - python3 -m pip install cmake>=3.16 ninja qibuild>=3.15 scikit-build
