@@ -419,3 +419,25 @@ else()
 endif()
 
 target_link_libraries(qi.interface INTERFACE cxx11)
+
+
+# Generate a list of dependency directories that can be used for
+# instance to generate RPATH or install those dependencies.
+set(QIPYTHON_BUILD_DEPENDENCIES_LIBRARY_DIRS ${Boost_LIBRARY_DIRS})
+foreach(_lib IN LISTS OPENSSL_LIBRARIES ICU_LIBRARIES)
+  if(EXISTS ${_lib})
+    get_filename_component(_dir ${_lib} DIRECTORY)
+    list(APPEND QIPYTHON_BUILD_DEPENDENCIES_LIBRARY_DIRS ${_dir})
+  endif()
+endforeach()
+list(REMOVE_DUPLICATES QIPYTHON_BUILD_DEPENDENCIES_LIBRARY_DIRS)
+
+# Adds all the dependency directories as RPATH for a target ouput
+# binary in the build directory, so that we may for instance execute
+# it directly.
+function(set_build_rpath_to_qipython_dependencies target)
+  message(VERBOSE
+    "Setting ${target} build RPATH to '${QIPYTHON_BUILD_DEPENDENCIES_LIBRARY_DIRS}'")
+  set_property(TARGET ${target} PROPERTY
+    BUILD_RPATH ${QIPYTHON_BUILD_DEPENDENCIES_LIBRARY_DIRS})
+endfunction()

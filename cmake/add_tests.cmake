@@ -20,14 +20,16 @@ include(GoogleTest)
 find_package(qimodule REQUIRED HINTS ${libqi_SOURCE_DIR})
 qi_create_module(moduletest NO_INSTALL)
 target_sources(moduletest PRIVATE tests/moduletest.cpp)
-target_link_libraries(moduletest cxx11)
+target_link_libraries(moduletest cxx11 qi.interface)
 enable_warnings(moduletest)
+set_build_rpath_to_qipython_dependencies(moduletest)
 
 
 add_executable(service_object_holder)
 target_sources(service_object_holder PRIVATE tests/service_object_holder.cpp)
 target_link_libraries(service_object_holder PRIVATE cxx11 qi.interface)
 enable_warnings(service_object_holder)
+set_build_rpath_to_qipython_dependencies(service_object_holder)
 
 
 add_executable(test_qipython)
@@ -44,9 +46,11 @@ target_link_libraries(test_qipython
   PRIVATE Python::Python
           cxx11
           gmock
+          pybind11
           qi_python_objects
           qi.interface)
 enable_warnings(test_qipython)
+set_build_rpath_to_qipython_dependencies(test_qipython)
 
 set(_sdk_prefix "${CMAKE_BINARY_DIR}/sdk")
 gtest_discover_tests(test_qipython EXTRA_ARGS --qi-sdk-prefix ${_sdk_prefix})

@@ -100,20 +100,7 @@ set_target_properties(qi_python
   PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${QIPYTHON_PYTHON_MODULE_NAME}
              RUNTIME_OUTPUT_DIRECTORY ${QIPYTHON_PYTHON_MODULE_NAME})
 
-# Add all the dependencies directories as RPATH for binaries in the build
-# directory, so that we may execute them directly.
-set(QIPYTHON_BUILD_DEPENDENCIES_LIBRARY_DIRS ${Boost_LIBRARY_DIRS})
-foreach(_lib IN LISTS OPENSSL_LIBRARIES ICU_LIBRARIES)
-  if(EXISTS ${_lib})
-    get_filename_component(_dir ${_lib} DIRECTORY)
-    list(APPEND QIPYTHON_BUILD_DEPENDENCIES_LIBRARY_DIRS ${_dir})
-  endif()
-endforeach()
-list(REMOVE_DUPLICATES QIPYTHON_BUILD_DEPENDENCIES_LIBRARY_DIRS)
-message(VERBOSE
-        "Setting qi_python build RPATH to '${QIPYTHON_BUILD_DEPENDENCIES_LIBRARY_DIRS}'")
-set_property(TARGET qi_python PROPERTY
-  BUILD_RPATH ${QIPYTHON_BUILD_DEPENDENCIES_LIBRARY_DIRS})
+set_build_rpath_to_qipython_dependencies(qi_python)
 
 if(NOT QIPYTHON_STANDALONE)
   add_library(qimodule_python_plugin SHARED)
