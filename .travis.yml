@@ -1,48 +1,47 @@
 language: python
-
 dist: focal
 python:
-  - "3.5"
-  - "3.6"
-  - "3.7"
-  - "3.8"
+- '3.5'
+- '3.6'
+- '3.7'
+- '3.8'
 
 addons:
   homebrew:
     packages:
-      - openssl@1.1
+    - openssl@1.1
     update: true
-
 jobs:
   include:
-    - name: "Python 3.8"
-      os: osx
-      osx_image: xcode10.1
-      language: shell
-      addons:
-        homebrew:
-          packages:
-            - python@3.8
+  - name: Python 3.8
+    os: osx
+    osx_image: xcode10.1
+    language: shell
+    addons:
+      homebrew:
+        packages:
+        - python@3.8
 
 install:
-  - ci/install_boost.sh
-  - python3 --version
-  - python3 -m pip install -U pip pytest pytest-timeout
-  - python3 -m pip install cmake>=3.16 ninja qibuild>=3.15 scikit-build
+- ci/install_boost.sh
+- python3 --version
+- python3 -m pip install -U pip pytest pytest-timeout
+- python3 -m pip install cmake>=3.16 ninja qibuild>=3.15 scikit-build
 
 script:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      export CMAKE_EXTRA_ARGS="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1" ;
-    else
-      export CMAKE_EXTRA_ARGS="" ;
-    fi
-  - python3 setup.py bdist_wheel -- -DBOOST_ROOT=$HOME/opt/boost_1_64_0 $CMAKE_EXTRA_ARGS
-  - pushd _skbuild/*/cmake-build && ctest --output-on-failure && popd
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then export CMAKE_EXTRA_ARGS="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1"
+  ; else export CMAKE_EXTRA_ARGS="" ; fi
+- python3 setup.py bdist_wheel -- -DBOOST_ROOT=$HOME/opt/boost_1_64_0 $CMAKE_EXTRA_ARGS
+#- pushd _skbuild/*/cmake-build && ctest --output-on-failure && popd
 
-#deploy:
-#  provider: releases
-#  api_key: "GITHUB OAUTH TOKEN"
-#  file: "FILE TO UPLOAD"
-#  skip_cleanup: true
-#  draft: true
-#  overwrite: true
+deploy:
+  provider: releases
+  api_key:
+    secure: dErUGUgUW04OaAr06263BGS5Do+u+4WMHUFE/Viw6pIK74do15LiSm5m0xAKR3CmHAyUIza0v7SSaBZExTUyVZCTep6bnd429hpG5L4lg9Dn4sEK1SydV2k7duwF/Serzr/Lybjpruf9iLY78HZPL6liZJsip/K8aIlGEapm1Hs=
+  file: dist/*.whl
+  on:
+    repo: aldebaran/libqi-python
+    #branch: master
+  skip_cleanup: true
+  draft: true
+  overwrite: true
