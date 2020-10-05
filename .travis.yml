@@ -32,9 +32,9 @@ install:
 
 script:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      export CMAKE_EXTRA_ARGS="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1"
+      export CMAKE_EXTRA_ARGS="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1" ;
     else
-      export CMAKE_EXTRA_ARGS=""
+      export CMAKE_EXTRA_ARGS="" ;
     fi
   - python3 setup.py bdist_wheel -- -DBOOST_ROOT=$HOME/opt/boost_1_64_0 $CMAKE_EXTRA_ARGS
   - pushd _skbuild/*/cmake-build && ctest --output-on-failure && popd
