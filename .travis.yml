@@ -7,20 +7,22 @@ python:
   - "3.7"
   - "3.8"
 
+addons:
+  homebrew:
+    packages:
+      - openssl@1.1
+    update: true
+
 jobs:
   include:
-      - name: "Python 3.8"
-        os: osx
-        osx_image: xcode10.1
-        language: shell
-        addons:
-          homebrew:
-            packages:
-              - openssl@1.1
-              - python@3.8
-            update: true
-        env:
-          - CMAKE_ARGS="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1"
+    - name: "Python 3.8"
+      os: osx
+      osx_image: xcode10.1
+      language: shell
+      addons:
+        homebrew:
+          packages:
+            - python@3.8
 
 install:
   - ci/install_boost.sh
@@ -29,10 +31,13 @@ install:
   - python3 -m pip install cmake>=3.16 ninja qibuild>=3.15 scikit-build
 
 script:
-  - python3 setup.py bdist_wheel -- $CMAKE_ARGS -DBOOST_ROOT=$HOME/opt/boost_1_64_0
-  - pushd _skbuild/*/cmake-build &&
-    ctest --output-on-failure &&
-    popd
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      export CMAKE_EXTRA_ARGS="-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1"
+    else
+      export CMAKE_EXTRA_ARGS=""
+    fi
+  - python3 setup.py bdist_wheel -- -DBOOST_ROOT=$HOME/opt/boost_1_64_0 $CMAKE_EXTRA_ARGS
+  - pushd _skbuild/*/cmake-build && ctest --output-on-failure && popd
 
 #deploy:
 #  provider: releases
