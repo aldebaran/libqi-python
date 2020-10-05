@@ -114,9 +114,8 @@ The project's dependencies on LibQi depends on the building mode:
   of the binary package installation can be specified through the `QI_DIR`
   variable.
 - In standalone mode, it will download and compile it as a subproject through
-  the `FetchContent` CMake module. How it is downloaded is specified in the
-  `cmake/set_dependencies.cmake` file and can be customized through the
-  following variables:
+  the `FetchContent` CMake module. How it is downloaded can be customized
+  through the following variables:
 
   - `LIBQI_VERSION`
   - `LIBQI_GIT_REPOSITORY`
@@ -133,15 +132,21 @@ Python
 The build system uses the FindPython_ CMake module. It will try to honor the
 following variables if they are set:
 
-- `PYTHON_VERSION_STRING`
-- `PYTHON_LIBRARY`
-- `PYTHON_INCLUDE_DIR`
+  - `PYTHON_VERSION_STRING`
+  - `PYTHON_LIBRARY`
+  - `PYTHON_INCLUDE_DIR`
 
 pybind11
 >>>>>>>>
 
 The build system will by default download and compile pybind11_ as a
-subproject through the `FetchContent` CMake module.
+subproject through the `FetchContent` CMake module. How it is downloaded can be
+customized through the following variables:
+
+  - `PYBIND11_VERSION`
+  - `PYBIND11_GIT_REPOSITORY`
+  - `PYBIND11_GIT_TAG`
+
 
 Boost
 >>>>>
@@ -166,7 +171,12 @@ GoogleTest
 >>>>>>>>>>
 
 The build system will by default download and compile GoogleTest_ as a
-subproject through the `FetchContent` CMake module.
+subproject through the `FetchContent` CMake module. How it is downloaded can be
+customized through the following variables:
+
+  - `GOOGLETEST_VERSION`
+  - `GOOGLETEST_GIT_REPOSITORY`
+  - `GOOGLETEST_GIT_TAG`
 
 Install
 ~~~~~~~
