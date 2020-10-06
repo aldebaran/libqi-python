@@ -39,10 +39,10 @@ script:
 
 deploy:
   provider: releases
+  edge: true
   token:
     secure: dErUGUgUW04OaAr06263BGS5Do+u+4WMHUFE/Viw6pIK74do15LiSm5m0xAKR3CmHAyUIza0v7SSaBZExTUyVZCTep6bnd429hpG5L4lg9Dn4sEK1SydV2k7duwF/Serzr/Lybjpruf9iLY78HZPL6liZJsip/K8aIlGEapm1Hs=
-  file_glob: true
-  file: dist/*.whl
+  file: dist/*
   on:
     repo: aldebaran/libqi-python
     all_branches: true # TODO: replace by branch: master
