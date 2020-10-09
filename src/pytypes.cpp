@@ -781,22 +781,22 @@ AnyReference unwrapAsRef(pybind11::object* obj)
                              " is not handled");
   }
 
-  if (::py::isinstance<::py::int_>(*obj))
+  if (PyLong_CheckExact(obj->ptr()))
     return AnyReference(instance<types::IntInterface<::py::object>>(), obj);
 
-  if (::py::isinstance<::py::float_>(*obj))
+  if (PyFloat_CheckExact(obj->ptr()))
     return AnyReference(instance<types::FloatInterface<::py::object>>(), obj);
 
-  if (::py::isinstance<::py::bool_>(*obj))
+  if (PyBool_Check(obj->ptr()))
     return AnyReference(instance<types::BoolInterface<::py::object>>(), obj);
 
-  if (::py::isinstance<::py::str>(*obj))
+  if (PyUnicode_CheckExact(obj->ptr()))
     return AnyReference(instance<types::StrInterface<::py::object>>(), obj);
 
-  if (::py::isinstance<::py::bytes>(*obj) || PyByteArray_CheckExact(obj->ptr()))
+  if (PyBytes_CheckExact(obj->ptr()) || PyByteArray_CheckExact(obj->ptr()))
     return AnyReference(instance<types::StringBufferInterface<::py::object>>(), obj);
 
-  if (::py::isinstance<::py::tuple>(*obj))
+  if (PyTuple_CheckExact(obj->ptr()))
     return AnyReference(instance<types::StructuredIterableInterface<::py::object>>(
                           ::py::tuple(*obj).size()),
                         obj);
@@ -807,13 +807,10 @@ AnyReference unwrapAsRef(pybind11::object* obj)
                           ::py::set(*obj).size()),
                         obj);
 
-  if (::py::isinstance<::py::list>(*obj))
+  if (PyList_CheckExact(obj->ptr()))
     return AnyReference(instance<types::ListInterface<::py::object, ::py::list>>(), obj);
 
-  if (::py::isinstance<::py::sequence>(*obj))
-    return AnyReference(instance<types::ListInterface<::py::object, ::py::sequence>>(), obj);
-
-  if (::py::isinstance<::py::dict>(*obj))
+  if (PyDict_CheckExact(obj->ptr()))
     return AnyReference(instance<types::DictInterface<::py::object>>(), obj);
 
   auto qiObj = py::toObject(*obj);

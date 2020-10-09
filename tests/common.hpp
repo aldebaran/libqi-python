@@ -40,11 +40,6 @@ struct CheckPoint
   qi::Future<void> fut() const { return prom.future(); }
 };
 
-struct WithGIL
-{
-  pybind11::gil_scoped_acquire lock;
-};
-
 struct Execute
 {
   Execute()

@@ -12,27 +12,56 @@
 
 namespace py = pybind11;
 
-struct AnyValueDefaultConversionTest : qi::py::test::WithGIL, testing::Test {};
-
-TEST_F(AnyValueDefaultConversionTest, PyInt)
+struct AnyValueFrom
 {
-  py::gil_scoped_acquire lock;
-  py::int_ i(42);
-  auto v = qi::AnyValue::from(i);
+  template<typename T>
+  qi::AnyValue operator()(T&& t)
+  {
+    return qi::AnyValue::from(std::forward<T>(t));
+  }
+};
+
+struct PybindObjectCast
+{
+  qi::AnyValue operator()(py::object obj)
+  {
+    py::gil_scoped_acquire lock;
+    return obj.cast<qi::AnyValue>();
+  }
+
+};
+
+template<typename Convert>
+struct ToAnyValueConversionTest : py::gil_scoped_acquire, testing::Test
+{
+  template<typename T>
+  qi::AnyValue toAnyValue(T&& t)
+  {
+    return Convert()(std::forward<T>(t));
+  }
+};
+using ConvertTypes = testing::Types<AnyValueFrom, PybindObjectCast>;
+TYPED_TEST_SUITE(ToAnyValueConversionTest, ConvertTypes);
+
+TYPED_TEST(ToAnyValueConversionTest, PyInt)
+{
+  auto v = this->toAnyValue(py::int_(42));
   EXPECT_EQ(qi::TypeKind_Int, v.kind());
+
+  const auto itf = static_cast<qi::IntTypeInterface*>(v.type());
+  EXPECT_EQ(sizeof(long long), itf->size());
+  EXPECT_TRUE(itf->isSigned());
+
   EXPECT_EQ(42, v.toInt());
 
   v.setInt(12);
   EXPECT_EQ(12, v.toInt());
-  EXPECT_TRUE(v.to<py::int_>().equal(py::int_(12)));
+  EXPECT_TRUE(v.template to<py::int_>().equal(py::int_(12)));
 }
 
-TEST_F(AnyValueDefaultConversionTest, PyFloat)
+TYPED_TEST(ToAnyValueConversionTest, PyFloat)
 {
-  py::gil_scoped_acquire lock;
-
-  py::float_ f(3.14);
-  auto v = qi::AnyValue::from(f);
+  auto v = this->toAnyValue(py::float_(3.14));
   EXPECT_EQ(qi::TypeKind_Float, v.kind());
   EXPECT_DOUBLE_EQ(3.14, v.toDouble());
 
@@ -40,117 +69,167 @@ TEST_F(AnyValueDefaultConversionTest, PyFloat)
   EXPECT_DOUBLE_EQ(329.329, v.toDouble());
 
   auto isclose = py::module::import("math").attr("isclose");
-  EXPECT_TRUE(isclose(py::float_(329.329), v.to<py::float_>()).cast<bool>());
+  EXPECT_TRUE(isclose(py::float_(329.329), v.template to<py::float_>()).template cast<bool>());
 }
 
-TEST_F(AnyValueDefaultConversionTest, PyBool)
+TYPED_TEST(ToAnyValueConversionTest, PyBool)
 {
-  py::bool_ b(true);
-  auto v = qi::AnyValue::from(b);
+  auto v = this->toAnyValue(py::bool_(true));
   EXPECT_EQ(qi::TypeKind_Int, v.kind());
-  EXPECT_TRUE(v.to<bool>());
+
+  const auto itf = static_cast<qi::IntTypeInterface*>(v.type());
+  EXPECT_EQ(0u, itf->size());
+  EXPECT_FALSE(itf->isSigned());
+
+  EXPECT_TRUE(v.template to<bool>());
 
   v.set(false);
-  EXPECT_FALSE(v.to<bool>());
-  EXPECT_EQ(py::bool_(false), v.to<py::bool_>());
+  EXPECT_FALSE(v.template to<bool>());
+  EXPECT_EQ(py::bool_(false), v.template to<py::bool_>());
 }
 
-TEST_F(AnyValueDefaultConversionTest, PyStr)
+TYPED_TEST(ToAnyValueConversionTest, PyStr)
 {
-  py::str s("cookies");
-  auto v = qi::AnyValue::from(s);
+  auto v = this->toAnyValue(py::str("cookies"));
   EXPECT_EQ(qi::TypeKind_String, v.kind());
   EXPECT_EQ("cookies", v.toString());
 
   v.setString("muffins");
   EXPECT_EQ("muffins", v.toString());
-  EXPECT_TRUE(v.to<py::str>().equal(py::str("muffins")));
+  EXPECT_TRUE(v.template to<py::str>().equal(py::str("muffins")));
 }
 
-TEST_F(AnyValueDefaultConversionTest, PyBytes)
+TYPED_TEST(ToAnyValueConversionTest, PyBytes)
 {
-  py::bytes b("cupcakes");
-  auto v = qi::AnyValue::from(b);
+  auto v = this->toAnyValue(py::bytes("cupcakes"));
   EXPECT_EQ(qi::TypeKind_String, v.kind());
   EXPECT_EQ("cupcakes", v.toString());
 
   v.setString("donuts");
   EXPECT_EQ("donuts", v.toString());
-  EXPECT_TRUE(v.to<py::bytes>().equal(py::bytes("donuts")));
+  EXPECT_TRUE(v.template to<py::bytes>().equal(py::bytes("donuts")));
 }
 
-TEST_F(AnyValueDefaultConversionTest, PyObject)
+struct ToAnyValueObjectConversionTest : py::gil_scoped_acquire, testing::Test {};
+
+TEST_F(ToAnyValueObjectConversionTest, AnyValueFromReturnsDynamic)
 {
-  py::object i = py::int_(42);
-  auto v = qi::AnyValue::from(i);
+  auto v = qi::AnyValue::from(py::object(py::int_(42)));
   EXPECT_EQ(qi::TypeKind_Dynamic, v.kind());
-  EXPECT_TRUE(v.to<py::object>().equal(py::int_(42)));
+  EXPECT_TRUE(v.template to<py::object>().equal(py::int_(42)));
 }
 
-TEST_F(AnyValueDefaultConversionTest, PyList)
+// No test with `PybindObjectCast` conversion with `PyObject` as it's equivalent
+// to `PybindObjectCast` conversion with the underlying object which should
+// already be tested.
+
+struct ToAnyValueListConversionTest : py::gil_scoped_acquire, testing::Test
 {
-  std::vector<int> values = {1, 2, 4, 8, 16};
-  const py::list l = py::cast(values);
-  auto v = qi::AnyValue::from(l);
+  static std::vector<int> toVec(qi::AnyReference listRef)
+  {
+    const auto vcVec = listRef.asListValuePtr();
+
+    std::vector<int> res;
+    std::transform(vcVec.begin(), vcVec.end(), std::back_inserter(res),
+                   [](const qi::AnyReference& v) { return v.to<int>(); });
+    return res;
+  }
+
+  const std::vector<int> values = {1, 2, 4, 8, 16};
+  const py::list list = py::cast(values);
+};
+
+TEST_F(ToAnyValueListConversionTest, AnyValueFromReturnsDynamic)
+{
+  auto v = qi::AnyValue::from(list);
   EXPECT_EQ(qi::TypeKind_Dynamic, v.kind());
-  EXPECT_TRUE(v.to<py::list>().equal(l));
+  EXPECT_TRUE(v.template to<py::list>().equal(list));
+  EXPECT_EQ(values, toVec(v.content()));
+}
 
-  auto vc = v.content();
-  const auto vcVec = vc.asListValuePtr();
-
-  std::vector<int> res;
-  std::transform(vcVec.begin(), vcVec.end(), std::back_inserter(res),
-                 [](const qi::AnyReference& v) { return v.to<int>(); });
-  EXPECT_EQ(values, res);
+TEST_F(ToAnyValueListConversionTest, PybindObjectCastReturnsList)
+{
+  auto v = list.cast<qi::AnyValue>();
+  EXPECT_EQ(qi::TypeKind_List, v.kind());
+  EXPECT_TRUE(v.template to<py::list>().equal(list));
+  EXPECT_EQ(values, toVec(v.asReference()));
 }
 
 using DictTypes = testing::Types<py::dict, py::kwargs>;
-template <typename T>
-struct AnyValueDefaultConversionDictTest : AnyValueDefaultConversionTest {};
-TYPED_TEST_SUITE(AnyValueDefaultConversionDictTest, DictTypes);
+template<typename Dict>
+struct ToAnyValueDictConversionTest : py::gil_scoped_acquire, testing::Test
+{
+  static std::map<std::string, int> toMap(qi::AnyReference map)
+  {
+    const auto vcMap = map.asMapValuePtr();
+    std::map<std::string, int> res;
+    std::transform(vcMap.begin(), vcMap.end(), std::inserter(res, res.begin()),
+                   [](const std::pair<qi::AnyReference, qi::AnyReference>& v) {
+                     return std::make_pair(v.first.to<std::string>(), v.second.to<int>());
+                   });
+    return res;
+  }
 
-TYPED_TEST(AnyValueDefaultConversionDictTest, Dict)
+  const std::map<std::string, int> values = {{ "two", 2 },
+                                             { "four", 4 },
+                                             { "eight", 8 },
+                                             { "sixteen", 16 }};
+  const Dict dict = py::cast(values);
+};
+TYPED_TEST_SUITE(ToAnyValueDictConversionTest, DictTypes);
+
+TYPED_TEST(ToAnyValueDictConversionTest, AnyValueFromReturnsDynamic)
 {
   using Dict = TypeParam;
-  std::map<std::string, int> values = {{ "two", 2 },
-                                       { "four", 4 },
-                                       { "eight", 8 },
-                                       { "sixteen", 16 }};
-  const Dict d = py::cast(values);
-  auto v = qi::AnyValue::from(d);
-  EXPECT_EQ(qi::TypeKind_Dynamic, v.kind());
-  EXPECT_TRUE(v.template to<Dict>().equal(d));
+  auto v = qi::AnyValue::from(this->dict);
+  ASSERT_EQ(qi::TypeKind_Dynamic, v.kind());
+  EXPECT_TRUE(v.template to<Dict>().equal(this->dict));
+  EXPECT_EQ(this->values, this->toMap(v.content()));
+}
 
-  auto vc = v.content();
-  const auto vcMap = vc.asMapValuePtr();
-  std::map<std::string, int> res;
-  std::transform(vcMap.begin(), vcMap.end(), std::inserter(res, res.begin()),
-                 [](const std::pair<qi::AnyReference, qi::AnyReference>& v) {
-                   return std::make_pair(v.first.to<std::string>(), v.second.to<int>());
-                 });
-  EXPECT_EQ(values, res);
+TYPED_TEST(ToAnyValueDictConversionTest, PybindObjectCastReturnsMap)
+{
+  using Dict = TypeParam;
+  auto v = this->dict.template cast<qi::AnyValue>();
+  ASSERT_EQ(qi::TypeKind_Map, v.kind());
+  EXPECT_TRUE(v.template to<Dict>().equal(this->dict));
+  EXPECT_EQ(this->values, this->toMap(v.asReference()));
 }
 
 using TupleTypes = testing::Types<py::tuple, py::args>;
-template <typename T>
-struct AnyValueDefaultConversionTupleTest : AnyValueDefaultConversionTest {};
-TYPED_TEST_SUITE(AnyValueDefaultConversionTupleTest, TupleTypes);
+template <typename Tuple>
+struct ToAnyValueTupleConversionTest : py::gil_scoped_acquire, testing::Test
+{
+  static std::tuple<int, std::string, std::int8_t> toTuple(qi::AnyReference tuple)
+  {
+    const auto vcMap = tuple.asTupleValuePtr();
+    const auto res =
+      std::make_tuple(vcMap[0].to<int>(), vcMap[1].toString(),
+                      vcMap[2].to<std::int8_t>());
+    return res;
+  }
 
-TYPED_TEST(AnyValueDefaultConversionTupleTest, Tuple)
+  const std::tuple<int, std::string, std::int8_t> values = std::make_tuple(21, "cookies", 15);
+  const Tuple tuple = py::cast(values);
+};
+TYPED_TEST_SUITE(ToAnyValueTupleConversionTest, TupleTypes);
+
+TYPED_TEST(ToAnyValueTupleConversionTest, AnyValueReturnsDynamic)
 {
   using Tuple = TypeParam;
-  const std::tuple<int, std::string, std::int8_t> values(21, "cookies", 's');
-  const Tuple t = py::cast(values);
-  auto v = qi::AnyValue::from(t);
-  EXPECT_EQ(qi::TypeKind_Dynamic, v.kind());
-  EXPECT_TRUE(v.template to<Tuple>().equal(t));
+  auto v = qi::AnyValue::from(this->tuple);
+  ASSERT_EQ(qi::TypeKind_Dynamic, v.kind());
+  EXPECT_TRUE(v.template to<Tuple>().equal(this->tuple));
+  EXPECT_EQ(this->values, this->toTuple(v.content()));
+}
 
-  auto vc = v.content();
-  const auto vcMap = vc.asTupleValuePtr();
-  const auto res =
-    std::make_tuple(vcMap[0].template to<int>(), vcMap[1].toString(),
-                    vcMap[2].template to<std::int8_t>());
-  EXPECT_EQ(values, res);
+TYPED_TEST(ToAnyValueTupleConversionTest, PybindObjectCastReturnsTuple)
+{
+  using Tuple = TypeParam;
+  auto v = this->tuple.template cast<qi::AnyValue>();
+  ASSERT_EQ(qi::TypeKind_Tuple, v.kind());
+  EXPECT_TRUE(v.template to<Tuple>().equal(this->tuple));
+  EXPECT_EQ(this->values, this->toTuple(v.asReference()));
 }
 
 struct TypePassing : qi::py::test::Execute,
@@ -322,4 +401,3 @@ TEST_F(TypePassing, ReverseDict)
   };
   EXPECT_TRUE(getService().call<bool>("func", expected));
 }
-
