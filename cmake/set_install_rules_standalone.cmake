@@ -50,3 +50,8 @@ install(TARGETS qi_python qi
         # On Windows, shared libraries (DLL) are considered `RUNTIME`.
         RUNTIME DESTINATION "${QIPYTHON_PYTHON_MODULE_NAME}"
         COMPONENT Module)
+
+# Install the Python file containing native informations.
+install(FILES "${QIPYTHON_NATIVE_PYTHON_FILE}"
+        DESTINATION "${QIPYTHON_PYTHON_MODULE_NAME}"
+        COMPONENT Module)

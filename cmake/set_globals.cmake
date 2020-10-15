@@ -44,3 +44,7 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
 # Instead we copy the dependencies we need in the install directory, and we set
 # the right RPATH ourselves.
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
+
+set(QIPYTHON_PYTHON_MODULE_NAME qi)
+set(QIPYTHON_PYTHON_MODULE_SOURCE_DIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/${QIPYTHON_PYTHON_MODULE_NAME})

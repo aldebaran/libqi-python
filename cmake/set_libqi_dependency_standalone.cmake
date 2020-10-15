@@ -25,7 +25,7 @@ if(NOT libqi_POPULATED)
   FetchContent_Populate(LibQi)
 endif()
 
-check_libqi_version("${libqi_SOURCE_DIR}/package.xml")
+check_libqi_version("${libqi_SOURCE_DIR}/package.xml" LIBQI_PACKAGE_VERSION)
 
 # Adds LibQi as a subproject which will create a `qi` target.
 #

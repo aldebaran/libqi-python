@@ -19,7 +19,7 @@ set(QIPYTHON_LIBQI_PACKAGE_FILE "${QIPYTHON_LIBQI_PACKAGE_FILE}" CACHE FILEPATH
 
 if(LIBQI_VERSION)
   if(EXISTS "${QIPYTHON_LIBQI_PACKAGE_FILE}")
-    check_libqi_version("${QIPYTHON_LIBQI_PACKAGE_FILE}")
+    check_libqi_version("${QIPYTHON_LIBQI_PACKAGE_FILE}" LIBQI_PACKAGE_VERSION)
   else()
     message(WARNING "The `package.xml` file for LibQi could not be found at \
 '${QIPYTHON_LIBQI_PACKAGE_FILE}' (the LibQi package was found in '${qi_DIR}'). \

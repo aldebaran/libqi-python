@@ -20,6 +20,11 @@ install(FILES ${QIPYTHON_PYTHON_MODULE_FILES}
         DESTINATION "${_sitelib_dir}"
         COMPONENT runtime)
 
+# Install the Python file containing native information.
+install(FILES "${QIPYTHON_NATIVE_PYTHON_FILE}"
+        DESTINATION "${_sitelib_dir}"
+        COMPONENT runtime)
+
 # Set the RPATH of the plugin to a relative libraries directory. We assume that,
 # if the plugin is installed in "/path/lib/qi/plugins", the
 # libraries we need are instead in "/path/lib", so we set the RPATH accordingly.
