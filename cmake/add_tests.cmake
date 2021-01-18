@@ -66,6 +66,20 @@ if(NOT Python_Interpreter_FOUND)
   message(WARNING "tests: a compatible Python Interpreter was NOT found, Python tests are DISABLED.")
 else()
   message(STATUS "tests: a compatible Python Interpreter was found, Python tests are enabled.")
+
+  # qibuild sets these variables which tends to mess up our calls of the Python interpreter, so
+  # we reset them preemptively.
+  set(ENV{PYTHONHOME})
+  set(ENV{PYTHONPATH})
+
+  execute_process(COMMAND "${Python_EXECUTABLE}" -m pytest --version
+                  OUTPUT_QUIET ERROR_QUIET
+                  RESULT_VARIABLE pytest_version_err)
+  if(pytest_version_err)
+    message(WARNING "tests: the pytest module does not seem to be installed for this Python Interpreter\
+, the execution of the tests will most likely result in a failure.")
+  endif()
+
   macro(copy_py_files dir)
     file(GLOB _files RELATIVE "${PROJECT_SOURCE_DIR}" CONFIGURE_DEPENDS "${dir}/*.py")
     foreach(_file IN LISTS _files)
