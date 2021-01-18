@@ -103,3 +103,8 @@ else()
     "LD_LIBRARY_PATH=${_ssl_dir}")
   set_tests_properties(pytest PROPERTIES ENVIRONMENT "${_pytest_env}")
 endif()
+
+# Ensure compatibility with qitest by simply running ctest. Timeout is set to 4 minutes.
+file(WRITE
+    "${CMAKE_BINARY_DIR}/qitest.cmake" "--name;run_ctest;--timeout;240;--working-directory;\
+${CMAKE_CURRENT_BINARY_DIR};--env;PYTHONHOME=;--env;PYTHONPATH=;--;${CMAKE_CTEST_COMMAND};-V")
