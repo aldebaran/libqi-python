@@ -9,11 +9,10 @@
 #include <qi/session.hpp>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <tests/qi/testutils/testutils.hpp>
-#include <tests/messaging/objectio.hpp>
 #include "common.hpp"
 
 namespace py = pybind11;
+using namespace qi::py;
 
 struct DefaultConstructedSignalTest : qi::py::test::Execute, testing::Test
 {

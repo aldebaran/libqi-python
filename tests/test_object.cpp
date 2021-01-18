@@ -14,10 +14,10 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
-#include <tests/qi/testutils/testutils.hpp>
 #include "common.hpp"
 
 namespace py = pybind11;
+using namespace qi::py;
 
 #define TEST_PYTHON_OBJECT_UID \
   R"(b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14")"

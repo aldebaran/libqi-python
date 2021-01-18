@@ -81,9 +81,24 @@ qi::Future<T> toFutOf(qi::py::Future fut)
   return fut.andThen([](const qi::AnyValue& val){ return val.to<T>(); });
 }
 
+template<typename Fut>
+testing::AssertionResult finishesWithValue(const Fut& fut,
+                                           qi::MilliSeconds timeout = qi::MilliSeconds{ 500 })
+{
+  const auto state = fut.wait(timeout);
+  auto result = (state == qi::FutureState_FinishedWithValue) ? testing::AssertionSuccess() :
+                                                               testing::AssertionFailure();
+  result << ", the future state after " << timeout.count() << "ms is " << state;
+
+  if (state == qi::FutureState_FinishedWithError)
+    result << ", the error is " << fut.error();
+
+  return result;
 }
-}
-}
+
+} // namespace test
+} // namespace py
+} // namespace qi
 
 
 #endif // QIPYTHON_TESTS_COMMON_HPP
