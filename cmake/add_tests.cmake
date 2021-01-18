@@ -44,11 +44,18 @@ target_sources(test_qipython
           tests/test_module.cpp)
 target_link_libraries(test_qipython
   PRIVATE Python::Python
-          cxx11
-          gmock
           pybind11
           qi_python_objects
-          qi.interface)
+          qi.interface
+          cxx11
+          gmock)
+# Unfortunately, in some of our toolchains, gtest/gmock headers are found in the qi-framework
+# package, which comes first in the include paths order given to the compiler. This causes the
+# compiler to use those headers instead of the ones we got from a `FetchContent` of the googletest
+# repository.
+target_include_directories(test_qipython
+  BEFORE # Force this path to come first in the list of include paths.
+  PRIVATE $<TARGET_PROPERTY:gmock,INTERFACE_INCLUDE_DIRECTORIES>)
 enable_warnings(test_qipython)
 set_build_rpath_to_qipython_dependencies(test_qipython)
 
