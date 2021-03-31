@@ -1,129 +1,112 @@
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
+
 #include <qipython/pysignal.hpp>
-#include <boost/python.hpp>
-#include <boost/python/raw_function.hpp>
+#include <qipython/common.hpp>
+#include <qipython/pyfuture.hpp>
+#include <qipython/pyobject.hpp>
+#include <qipython/pystrand.hpp>
+#include <pybind11/pybind11.h>
 #include <qi/signal.hpp>
 #include <qi/anyobject.hpp>
 #include <qi/periodictask.hpp>
-#include <qipython/gil.hpp>
-#include <qipython/error.hpp>
-#include <qipython/pyfuture.hpp>
-#include <qipython/pyobject.hpp>
-#include <qipython/pythreadsafeobject.hpp>
-#include "pystrand.hpp"
 
-qiLogCategory("py.async");
+namespace py = pybind11;
 
-namespace qi { namespace py {
+namespace qi
+{
+namespace py
+{
 
-    static void pyPeriodicCb(const PyThreadSafeObject& callable) {
-      GILScopedLock _gil;
-      PY_CATCH_ERROR(callable.object()());
-    }
+namespace
+{
 
-    class PyPeriodicTask : public qi::PeriodicTask {
-    public:
-      void setCallback(boost::python::object callable) {
-        if (!PyCallable_Check(callable.ptr()))
-          throw std::runtime_error("Not a callable");
-        qi::PeriodicTask::setCallback(boost::bind<void>(pyPeriodicCb, PyThreadSafeObject(callable)));
-        qi::PeriodicTask::setStrand(extractStrandFromCallable(callable));
-      }
+constexpr const auto delayArgName = "delay";
 
-      void stop() {
-        qi::py::GILScopedUnlock _unlock;
-        //unlock because stop wait for the callback to finish.
-        qi::PeriodicTask::stop();
-      }
+::py::object async(::py::function pyCallback,
+                   ::py::args args,
+                   ::py::kwargs kwargs)
+{
+  ::py::gil_scoped_acquire lock;
 
-      void start(bool immediate) {
-        qi::py::GILScopedUnlock _unlock;
-        //unlock because stop wait for the callback to finish.
-        qi::PeriodicTask::start(immediate);
-      }
+  qi::uint64_t usDelay = 0;
+  if (const auto optUsDelay = extractKeywordArg<qi::uint64_t>(kwargs, delayArgName))
+    usDelay = *optUsDelay;
 
-    };
+  const MicroSeconds delay(usDelay);
 
-    static AnyValue pyAsync(PyThreadSafeObject safeargs) {
-      GILScopedLock _gil;
+  GILGuardedObject guardCb(pyCallback);
+  GILGuardedObject guardArgs(std::move(args));
+  GILGuardedObject guardKwargs(std::move(kwargs));
 
-      boost::python::list args(safeargs.object());
-      boost::python::object callable = args[0];
+  auto invokeCallback = [=]() mutable {
+    ::py::gil_scoped_acquire lock;
+    auto res = ::py::object((*guardCb)(**guardArgs, ***guardKwargs)).cast<AnyValue>();
+    // Release references immediately while we hold the GIL, instead of waiting
+    // for the lambda destructor to relock the GIL.
+    *guardKwargs = {};
+    *guardArgs = {};
+    *guardCb = {};
+    return res;
+  };
 
-      args.pop(0);
-
-      try {
-        return AnyValue::from(boost::python::object(
-              callable(*boost::python::tuple(args))));
-      } catch (const boost::python::error_already_set &) {
-        throw std::runtime_error(PyFormatError());
-      }
-    }
-
-    static boost::python::object pyasyncParamShrinker(boost::python::tuple args, boost::python::dict kwargs) {
-      //arg0 always exists
-      //check args[0] is a callable
-      boost::python::object callable = args[0];
-      if (!PyCallable_Check(callable.ptr()))
-        throw std::runtime_error("Not a callable");
-
-      qi::uint64_t delay = boost::python::extract<qi::uint64_t>(kwargs.get("delay", 0));
-
-      // use AnyValue to ensure that GIL is acquired upon destruction. The
-      // PyFuture may *not* be the last destroyed pointer!
-      // We could use PyThreadSafeObject, but it is not bound to qitype so
-      // AnyValue is easier to use
-      boost::function<AnyValue()> f = boost::bind(&pyAsync, PyThreadSafeObject(args));
-
-      // If there is a strand attached to that callable, we use it but we cannot use asyncDelay (we
-      // use defer instead). This is because we might be executing this function from inside the
-      // strand execution context, and thus asyncDelay might be blocking.
-      qi::Promise<AnyValue> prom;
-      qi::Strand* strand = extractStrandFromCallable(callable);
-      if (strand)
-      {
-        strand->defer([=]() mutable { prom.setValue(f()); }, qi::MicroSeconds(delay))
+  // If there is a strand attached to that callable, we use it but we cannot use
+  // asyncDelay (we use defer instead). This is because we might be executing
+  // this function from inside the strand execution context, and thus asyncDelay
+  // might be blocking.
+  Promise prom;
+  const auto strand = strandOfFunction(pyCallback);
+  if (strand)
+  {
+    strand->defer([=]() mutable { prom.setValue(invokeCallback()); }, delay)
           .connect([=](qi::Future<void> fut) mutable {
-              if (fut.hasError())
-                prom.setError(fut.error());
-              else if (fut.isCanceled())
-                prom.setCanceled();
+              if (fut.hasValue()) return;
+              adaptFuture(fut, prom);
             });
-      }
-      else
-        qi::adaptFuture(qi::getEventLoop()->asyncDelay(f, qi::MicroSeconds(delay)), prom);
+  }
+  else
+    adaptFuture(asyncDelay(invokeCallback, delay), prom);
 
-      return boost::python::object(qi::py::toPyFuture(prom.future()));
-    }
+  return castToPyObject(prom.future());
+}
 
+} // namespace
 
-    void export_pyasync() {
-      boost::python::object async = boost::python::raw_function(&pyasyncParamShrinker, 1);
+void exportAsync(::py::module& m)
+{
+  using namespace ::py;
+  using namespace ::py::literals;
 
-      async.attr("__doc__") = "async(callback [, delay=usec] [, arg1, ..., argn]) -> future\n"
-                              ":param callback: the callback that will be called\n"
-                              ":param delay: an optional delay in microseconds\n"
-                              ":return: a future with the return value of the function\n"
-                              "\n";
+  gil_scoped_acquire lock;
 
-      boost::python::def("async", async);
+  m.def("runAsync", &async,
+        "callback"_a,
+        // TODO: use `::py:kwonly, ::py::arg(delayArgName) = 0` when available.
+        doc(":param callback: the callback that will be called\n"
+            ":param delay: an optional delay in microseconds\n"
+            ":returns: a future with the return value of the function"));
 
-      boost::python::class_<PyPeriodicTask, boost::shared_ptr<PyPeriodicTask>, boost::noncopyable >("PeriodicTask")
-        .def(boost::python::init<>())
-        .def("setCallback", &PyPeriodicTask::setCallback,
-             "setCallback(callable)\n"
-             ":param callable: a python callable, could be a method or a function\n"
-             "\n"
-             "set the callback used by the periodictask, this function can only be called once")
-        .def("setUsPeriod", &PyPeriodicTask::setUsPeriod,
-             "setUsPeriod(usPeriod)\n"
-             ":param usPeriod: the period in microseconds\n"
-             "\n"
-             "Set the call interval in microseconds.\n"
-             "This call will wait until next callback invocation to apply the change.\n"
+  class_<PeriodicTask>(m, "PeriodicTask")
+    .def(init<>())
+    .def(
+      "setCallback",
+      [](PeriodicTask& task, ::py::function pyCallback) {
+        auto callback = pyCallback.cast<std::function<void()>>();
+        task.setCallback(std::move(callback));
+        task.setStrand(strandOfFunction(pyCallback).get());
+      },
+      "callable"_a,
+      doc(
+        "Set the callback used by the periodic task, this function can only be "
+        "called once.\n"
+        ":param callable: a python callable, could be a method or a function."))
+    .def("setUsPeriod", &PeriodicTask::setUsPeriod,
+         call_guard<gil_scoped_release>(), "usPeriod"_a,
+         doc("Set the call interval in microseconds.\n"
+             "This call will wait until next callback invocation to apply the "
+             "change.\n"
              "To apply the change immediately, use: \n"
              "\n"
              ".. code-block:: python\n"
@@ -131,51 +114,47 @@ namespace qi { namespace py {
              "   task.stop()\n"
              "   task.setUsPeriod()\n"
              "   task.start()\n"
-             "\n")
-        .def("start", &PyPeriodicTask::start,
-             "start(immediate)\n"
-             ":param immediate: immediate if true, first schedule of the task will happen with no delay.\n"
-             "\n"
-             "start the periodic task at specified period. No effect if already running\n"
-             "\n"
+             ":param usPeriod: the period in microseconds"))
+    .def("start", &PeriodicTask::start, call_guard<gil_scoped_release>(),
+         "immediate"_a,
+         doc("Start the periodic task at specified period. No effect if "
+             "already running.\n"
+             ":param immediate: immediate if true, first schedule of the task "
+             "will happen with no delay.\n"
              ".. warning::\n"
-             "   concurrent calls to start() and stop() will result in undefined behavior."
-             "\n")
-        .def("stop", &PyPeriodicTask::stop,
-             "stop()\n"
-             "Stop the periodic task. When this function returns, the callback will not be called anymore.\n"
-             "Can be called from within the callback function\n"
-             "\n"
+             "   concurrent calls to start() and stop() will result in "
+             "undefined behavior."))
+    .def("stop", &PeriodicTask::stop, call_guard<gil_scoped_release>(),
+         doc("Stop the periodic task. When this function returns, the callback "
+             "will not be called "
+             "anymore. Can be called from within the callback function\n"
              ".. warning::\n"
-             "   concurrent calls to start() and stop() will result in undefined behavior."
-             "\n")
-        .def("asyncStop", &PyPeriodicTask::asyncStop,
-             "asyncStop()\n"
-             "Can be called from within the callback function\n"
-             "Request for periodic task to stop asynchronously")
-        .def("compensateCallbackTime", &PyPeriodicTask::compensateCallbackTime,
-             "compensateCallbackTime(compensate)\n"
-             ":param compensate: boolean. True to activate the compensation.\n"
-             "\n"
-             "When compensation is activated, call interval will take into account call duration to maintain the period.\n"
-             "\n"
-             ".. warning::\n"
-             "  when the callback is longer than the period specified, compensation will result in\n"
-             "  the callback being called successively without pause"
-             "\n")
-        .def("setName", &PyPeriodicTask::setName,
-             "setName(name)\n"
-             "Set name for debugging and tracking purpose")
-        .def("isRunning", &PyPeriodicTask::isRunning,
-             "isRunning() -> bool\n"
-             ":return: true if task is running\n")
-        .def("isStopping", &PyPeriodicTask::isStopping,
-             "isStopping() -> bool\n"
-             ":return: whether state is stopping or stopped.\n"
-             "\n"
-             "Can be called from within the callback to know if stop() or asyncStop()  was called.")
-          ;
-    }
-
-  }
+             "   concurrent calls to start() and stop() will result in "
+             "undefined behavior."))
+    .def("asyncStop", &PeriodicTask::asyncStop,
+         call_guard<gil_scoped_release>(),
+         doc("Request for periodic task to stop asynchronously.\n"
+             "Can be called from within the callback function."))
+    .def(
+      "compensateCallbackTime", &PeriodicTask::compensateCallbackTime,
+      call_guard<gil_scoped_release>(), "compensate"_a,
+      doc(
+        ":param compensate: boolean. True to activate the compensation.\n"
+        "When compensation is activated, call interval will take into account "
+        "call duration to maintain the period.\n"
+        ".. warning::\n"
+        "   when the callback is longer than the specified period, "
+        "compensation will result in the callback being called successively "
+        "without pause."))
+    .def("setName", &PeriodicTask::setName, call_guard<gil_scoped_release>(),
+         "name"_a, doc("Set name for debugging and tracking purpose"))
+    .def("isRunning", &PeriodicTask::isRunning,
+         doc(":returns: true if task is running"))
+    .def("isStopping", &PeriodicTask::isStopping,
+         doc("Can be called from within the callback to know if stop() or "
+             "asyncStop() was called.\n"
+             ":returns: whether state is stopping or stopped."));
 }
+
+} // namespace py
+} // namespace qi

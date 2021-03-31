@@ -1,55 +1,42 @@
 /*
-**  Copyright (C) 2014 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
 
-#include <boost/python.hpp>
-
 #include <qipython/pytranslator.hpp>
+#include <qipython/common.hpp>
+#include <pybind11/pybind11.h>
 
-namespace qi {
-  namespace py {
-   PyTranslator::PyTranslator(const std::string &name)
-      : qi::Translator(name)
-    { }
+namespace py = pybind11;
 
-   std::string PyTranslator::translate1(const std::string &msg)
-   {
-     return qi::Translator::translate(msg);
-   }
+namespace qi
+{
+namespace py
+{
 
-   std::string PyTranslator::translate2(const std::string &msg, const std::string &domain)
-   {
-     return qi::Translator::translate(msg, domain);
-   }
+void exportTranslator(::py::module& m)
+{
+  using namespace ::py;
+  using namespace ::py::literals;
 
-   std::string PyTranslator::translate3(const std::string &msg, const std::string &domain, const std::string &locale)
-   {
-     return qi::Translator::translate(msg, domain, locale);
-   }
+  gil_scoped_acquire lock;
 
-   void export_pytranslator()
-   {
-     // If we don't tell boost it's non-copyable it will try to register a
-     // converter for handling wrapped function
-     // See https://wiki.python.org/moin/boost.python/class
-     boost::python::class_<PyTranslator, boost::noncopyable>("Translator", boost::python::init<std::string>())
-       .def("translate", &PyTranslator::translate1,
-            "Translate a message from a domain to a locale")
-       .def("translate", &PyTranslator::translate2,
-            "Translate a message from a domain to a locale")
-       .def("translate", &PyTranslator::translate3,
-            "Translate a message from a domain to a locale")
-       .def("translate", &PyTranslator::translate,
-            "Translate a message from a domain to a locale")
-       .def("translate", &PyTranslator::translateContext,
-            "Translate a message with a context")
-       .def("setCurrentLocale", &PyTranslator::setCurrentLocale,
-            "Set the locale.")
-       .def("setDefaultDomain", &PyTranslator::setDefaultDomain,
-            "Set the domain.")
-       .def("addDomain", &PyTranslator::addDomain,
-            "Add a new domain.");
-   }
-  }
+  class_<Translator>(m, "Translator")
+    .def(init([](const std::string& name) { return new Translator(name); }),
+         call_guard<gil_scoped_release>(), "name"_a)
+    .def("translate", &Translator::translate, call_guard<gil_scoped_release>(),
+         "msg"_a, "domain"_a = "", "locale"_a = "", "context"_a = "",
+         doc("Translate a message from a domain to a locale."))
+    .def("translate", &Translator::translateContext,
+         call_guard<gil_scoped_release>(), "msg"_a, "context"_a,
+         doc("Translate a message with a context."))
+    .def("setCurrentLocale", &Translator::setCurrentLocale,
+         call_guard<gil_scoped_release>(), "locale"_a, doc("Set the locale."))
+    .def("setDefaultDomain", &Translator::setDefaultDomain, "domain"_a,
+         call_guard<gil_scoped_release>(), doc("Set the domain."))
+    .def("addDomain", &Translator::addDomain, "domain"_a,
+         doc("Add a new domain."));
 }
+
+} // namespace py
+} // namespace qi

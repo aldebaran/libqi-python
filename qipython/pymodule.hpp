@@ -1,22 +1,23 @@
-#pragma once
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
 
-#ifndef _QIPYTHON_PYOBJECTFACTORY_HPP_
-#define _QIPYTHON_PYOBJECTFACTORY_HPP_
+#pragma once
 
-#include <qipython/api.hpp>
-#include <qi/anymodule.hpp>
-#include <string>
+#ifndef QIPYTHON_PYOBJECTFACTORY_HPP
+#define QIPYTHON_PYOBJECTFACTORY_HPP
 
-namespace qi {
-  namespace py {
-    void export_pyobjectfactory();
+#include <qipython/common.hpp>
 
-    QIPYTHON_API qi::AnyModule importPyModule(const qi::ModuleInfo& name);
-  }
+namespace qi
+{
+namespace py
+{
+
+void exportObjectFactory(pybind11::module& m);
+
+}
 }
 
-#endif  // _QIPYTHON_PYOBJECTFACTORY_HPP_
+#endif // QIPYTHON_PYOBJECTFACTORY_HPP

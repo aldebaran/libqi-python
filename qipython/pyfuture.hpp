@@ -1,93 +1,62 @@
-#pragma once
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
 
-#ifndef _QIPYTHON_PYFUTURE_HPP_
-#define _QIPYTHON_PYFUTURE_HPP_
+#pragma once
 
-// We need this header because on macOS python redefine macro of string operations (isalnum, isspace...)
-// this redefintion conflict with ios definition of those function.
-// for more information take a look to python2.7/pyport.h headers under _PY_PORT_CTYPE_UTF8_ISSUE section.
-#include <locale>
+#ifndef QIPYTHON_PYFUTURE_HPP
+#define QIPYTHON_PYFUTURE_HPP
 
-#include <boost/python.hpp>
+#include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qi/future.hpp>
 #include <qi/anyvalue.hpp>
-#include <qipython/gil.hpp>
-#include <qipython/api.hpp>
-#include <boost/smart_ptr/enable_shared_from_this.hpp>
 
-namespace qi {
-  namespace py {
+namespace qi
+{
+namespace py
+{
 
-    class PyThreadSafeObject;
+using Future = qi::Future<AnyValue>;
+using Promise = qi::Promise<AnyValue>;
 
-    class PyFuture : public qi::Future<qi::AnyValue> {
-      friend class PyFutureBarrier;
-      friend void pyFutureCb(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable);
-      friend qi::AnyValue pyFutureThen(const qi::Future<qi::AnyValue>& fut, const PyThreadSafeObject& callable);
-      friend void onBarrierFinished(const std::vector<qi::Future<qi::AnyValue> >& futs, Promise<AnyValue> prom);
+// Depending on whether we want an asynchronous result or not, returns the
+// future or its value.
+inline pybind11::object resultObject(const Future& fut, bool async)
+{
+  pybind11::gil_scoped_acquire lock;
+  if (async)
+    return castToPyObject(fut);
 
-    public:
-      PyFuture();
-      PyFuture(const boost::python::object& obj);
-      PyFuture(const qi::Future<qi::AnyValue>& fut);
-      boost::python::object value(int msecs = qi::FutureTimeout_Infinite) const;
-      void addCallback(const boost::python::object &callable);
-      boost::python::object pyThen(const boost::python::object& callable);
-      boost::python::object pyAndThen(const boost::python::object& callable);
-      boost::python::object unwrap();
-    };
-
-    //convert from Future to PyFuture
-    template <typename T>
-    PyFuture toPyFuture(qi::Future<T> fut) {
-      Promise<AnyValue> gprom;
-      qi::adaptFuture(fut, gprom);
-      return gprom.future();
-    }
-
-    //convert from FutureSync to PyFuture
-    template <typename T>
-    PyFuture toPyFuture(qi::FutureSync<T> fut) {
-      return toPyFuture(fut.async());
-    }
-
-    //async == true  => convert to PyFuture
-    //async == false => convert to PyObject or throw on error
-    template <typename T>
-    boost::python::object toPyFutureAsync(qi::Future<T> fut, bool async) {
-      if (async)
-        return boost::python::object(toPyFuture(fut));
-      {
-        GILScopedUnlock _;
-        fut.wait();
-      }
-      return qi::AnyReference::from(fut.value()).template to<boost::python::object>(); //throw on error
-    }
-
-    template <>
-    inline boost::python::object toPyFutureAsync<void>(qi::Future<void> fut, bool async) {
-      if (async)
-        return boost::python::object(toPyFuture(fut));
-      {
-        GILScopedUnlock _;
-        fut.value(); //wait for the result
-      }
-      return boost::python::object(); //throw on error
-    }
-
-    template <typename T>
-    boost::python::object toPyFutureAsync(qi::FutureSync<T> fut, bool async) {
-      return toPyFutureAsync(fut.async(), async);
-    }
-
-    void export_pyfuture();
-
-  }
+  // Wait for the future outside of the GIL.
+  auto res = invokeGuarded<pybind11::gil_scoped_release>(qi::SrcFuture{}, fut);
+  return castToPyObject(res);
 }
 
+inline Future toFuture(qi::Future<void> f)
+{
+  return f.andThen(FutureCallbackType_Sync,
+                   [](void*) { return AnyValue::makeVoid(); });
+}
 
-#endif  // _QIPYTHON_PYFUTURE_HPP_
+inline Future toFuture(qi::Future<AnyValue> f) { return f; }
+inline Future toFuture(qi::Future<AnyReference> f)
+{
+  return f.andThen(FutureCallbackType_Sync,
+                   [](const AnyReference& ref) { return AnyValue(ref); });
+}
+
+template<typename T>
+inline Future toFuture(qi::Future<T> f)
+{
+  return f.andThen(FutureCallbackType_Sync,
+                   [](const T& val) { return AnyValue::from(val); });
+}
+
+void exportFuture(pybind11::module& module);
+
+} // namespace py
+} // namespace qi
+
+#endif  // QIPYTHON_PYFUTURE_HPP

@@ -1,23 +1,26 @@
-#pragma once
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
 
-#ifndef _QIPYTHON_PYSESSION_HPP_
-#define _QIPYTHON_PYSESSION_HPP_
+#pragma once
 
-#include <boost/python.hpp>
+#ifndef QIPYTHON_PYSESSION_HPP
+#define QIPYTHON_PYSESSION_HPP
+
+#include <qipython/common.hpp>
 #include <qi/session.hpp>
-#include <qipython/api.hpp>
 
-namespace qi {
-namespace py {
+namespace qi
+{
+namespace py
+{
 
-QIPYTHON_API boost::python::object makePySession(const SessionPtr& sess);
-void export_pysession();
+pybind11::object makeSession(SessionPtr sess);
 
-}
-}
+void exportSession(pybind11::module& module);
 
-#endif  // _QIPYTHON_PYSESSION_HPP_
+} // namespace py
+} // namespace qi
+
+#endif  // QIPYTHON_PYSESSION_HPP

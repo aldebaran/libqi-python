@@ -1,217 +1,182 @@
 /*
-**  Copyright (C) 2014 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
 
-#include <qipython/pypath.hpp>
 
-#include <boost/python.hpp>
+#include <qipython/pypath.hpp>
+#include <qipython/common.hpp>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <qi/path.hpp>
 #include <qi/anyvalue.hpp>
 
-namespace qi {
-  namespace py {
-    static boost::python::list pylistdata1(const std::string& applicationName, const std::string& pattern)
-    {
-      std::vector<std::string> vect = qi::path::listData(applicationName, pattern);
-      return qi::AnyReference::from(vect).to<boost::python::list>();
-    }
+namespace py = pybind11;
 
-    // With default pattern
-    static boost::python::list pylistdata2(const std::string& applicationName)
-    {
-      std::vector<std::string> vect = qi::path::listData(applicationName);
-      return qi::AnyReference::from(vect).to<boost::python::list>();
-    }
+namespace qi
+{
+namespace py
+{
 
-    static boost::python::list pyconfpaths1(const std::string& applicationName)
-    {
-      std::vector<std::string> vect = qi::path::confPaths(applicationName);
-      return qi::AnyReference::from(vect).to<boost::python::list>();
-    }
+void exportPath(::py::module& m)
+{
+  using namespace ::py;
+  using namespace ::py::literals;
 
-    static boost::python::list pyconfpaths2()
-    {
-      std::vector<std::string> vect = qi::path::confPaths();
-      return qi::AnyReference::from(vect).to<boost::python::list>();
-    }
+  gil_scoped_acquire lock;
 
-    static boost::python::list pydatapaths1(const std::string& applicationName)
-    {
-      std::vector<std::string> vect = qi::path::dataPaths(applicationName);
-      return qi::AnyReference::from(vect).to<boost::python::list>();
-    }
+  m.def("sdkPrefix", &path::sdkPrefix, call_guard<gil_scoped_release>(),
+        doc(":returns: The SDK prefix path. It is always a complete, native "
+            "path.\n"));
 
-    static boost::python::list pydatapaths2()
-    {
-      std::vector<std::string> vect = qi::path::dataPaths();
-      return qi::AnyReference::from(vect).to<boost::python::list>();
-    }
+  m.def(
+    "findBin", &path::findBin, call_guard<gil_scoped_release>(), "name"_a,
+    "searchInPath"_a = false,
+    doc("Look for a binary in the system.\n"
+        ":param name: string. The full name of the binary, or just the name.\n"
+        ":param searchInPath: boolean. Search in $PATH if it hasn't been "
+        "found in sdk dirs. Optional.\n"
+        ":returns: the complete, native path to the file found. An empty string "
+        "otherwise."));
 
-    static boost::python::list pybinpaths()
-    {
-      std::vector<std::string> vect = qi::path::binPaths();
-      return qi::AnyReference::from(vect).to<boost::python::list>();
-    }
+  m.def(
+    "findLib", &path::findLib, call_guard<gil_scoped_release>(), "name"_a,
+    doc("Look for a library in the system.\n"
+        ":param name: string. The full name of the library, or just the name.\n"
+        ":returns: the complete, native path to the file found. An empty string "
+        "otherwise."));
 
-    static boost::python::list pylibpaths()
-    {
-      std::vector<std::string> vect = qi::path::libPaths();
-      return qi::AnyReference::from(vect).to<boost::python::list>();
-    }
+  m.def(
+    "findConf", &path::findConf, call_guard<gil_scoped_release>(),
+    "application"_a, "file"_a, "excludeUserWritablePath"_a = false,
+    doc("Look for a configuration file in the system.\n"
+        ":param application: string. The name of the application.\n"
+        ":param file: string. The name of the file to look for."
+        " You can specify subdirectories using '/' as a separator.\n"
+        ":param excludeUserWritablePath: If true, findConf() won't search into "
+        "userWritableConfPath.\n"
+        ":returns: the complete, native path to the file found. An empty string "
+        "otherwise."));
 
-    static boost::python::list pysdkprefixes()
-    {
-      std::vector<std::string> vect = qi::path::detail::getSdkPrefixes();
-      return qi::AnyReference::from(vect).to<boost::python::list>();
-    }
+  m.def(
+    "findData", &path::findData, call_guard<gil_scoped_release>(),
+    "application"_a, "file"_a, "excludeUserWritablePath"_a = false,
+    doc("Look for a file in all dataPaths(application) directories. Return the "
+        "first match.\n"
+        ":param application: string. The name of the application.\n"
+        ":param file: string. The name of the file to look for."
+        " You can specify subdirectories using a '/' as a separator.\n"
+        ":param excludeUserWritablePath: If true, findData() won't search into "
+        "userWritableDataPath.\n"
+        ":returns: the complete, native path to the file found. An empty string "
+        "otherwise."));
 
-    void export_pypath()
-    {
-      boost::python::def("sdkPrefix", &qi::path::sdkPrefix,
-                         "sdkPrefix() -> string\n"
-                         ":return: The SDK prefix path. It is always a complete, native path.\n");
+  m.def(
+    "listData",
+    [](const std::string& applicationName, const std::string& pattern) {
+      return path::listData(applicationName, pattern);
+    },
+    call_guard<gil_scoped_release>(), "applicationName"_a, "pattern"_a,
+    doc("List data files matching the given pattern in all "
+        "dataPaths(application) directories.\n"
+        " For each match, return the occurrence from the first dataPaths prefix."
+        " Directories are discarded.\n\n"
+        ":param application: string. The name of the application.\n"
+        ":param patten: string. Wildcard pattern of the files to look for."
+        " You can specify subdirectories using a '/' as a separator."
+        " \"*\" by default.\n"
+        ":returns: a list of the complete, native paths of the files that "
+        "matched."));
 
-      boost::python::def("findBin", &qi::path::findBin, (boost::python::arg("name"), boost::python::arg("searchInPath") = false),
-                         "findBin(name) -> string\n"
-                         ":param name: string. The full name of the binary, or just the name.\n"
-                         ":param searchInPath: boolean. Search in $PATH if it haven't been found in sdk dirs. Optionnal.\n"
-                         ":return: the complete, native path to the file found. An empty string otherwise.\n"
-                         "\n"
-                         "Look for a binary in the system.");
+  m.def("listData", [](const std::string& applicationName) {
+          return path::listData(applicationName);
+        },
+        call_guard<gil_scoped_release>(), "applicationName"_a);
 
-      boost::python::def("findLib", &qi::path::findLib,
-                         "findLib(name) -> string\n"
-                         ":param name: string. The full name of the library, or just the name.\n"
-                         ":return: the complete, native path to the file found. An empty string otherwise.\n"
-                         "\n"
-                         "Look for a library in the system.");
+  m.def("confPaths", [](const std::string& applicationName) {
+          return path::confPaths(applicationName);
+        },
+        call_guard<gil_scoped_release>(),
+        "applicationName"_a,
+        doc("Get the list of directories used when searching for "
+            "configuration files for the given application.\n"
+            ":param applicationName: string. Name of the application. "
+            "\"\" by default.\n"
+            ":returns: The list of configuration directories.\n"
+            ".. warning::\n"
+            "   You should not assume those directories exist,"
+            " nor that they are writable."));
 
-      boost::python::def("findConf", &qi::path::findConf, (boost::python::arg("application"),
-                                    boost::python::arg("file"), boost::python::arg("excludeUserWritablePath") = false),
-                         "findConf(application, file) -> string\n"
-                         ":param application: string. The name of the application.\n"
-                         ":param file: string. The name of the file to look for."
-                         " You can specify subdirectories using '/' as a separator.\n"
-                         ":param excludeUserWritablePath: If true, findConf() won't search into userWritableConfPath.\n"
-                         ":return: the complete, native path to the file found. An empty string otherwise.\n"
-                         "\n"
-                         "Look for a configuration file in the system.");
+  m.def("confPaths", [] { return path::confPaths(); },
+        call_guard<gil_scoped_release>());
 
-      boost::python::def("findData", &qi::path::findData, (boost::python::arg("application"),
-                                    boost::python::arg("file"), boost::python::arg("excludeUserWritablePath") = false),
-                         "findData(application, file) -> string\n"
-                         ":param application: string. The name of the application.\n"
-                         ":param file: string. The name of the file to look for."
-                         " You can specify subdirectories using a '/' as a separator.\n"
-                         ":param excludeUserWritablePath: If true, findData() won't search into userWritableDataPath.\n"
-                         ":return: the complete, native path to the file found. An empty string otherwise.\n"
-                         "\n"
-                         "Look for a file in all dataPaths(application) directories. Return the first match.");
+  m.def("dataPaths", [](const std::string& applicationName) {
+          return path::dataPaths(applicationName);
+        },
+        call_guard<gil_scoped_release>(),
+        "applicationName"_a,
+        doc("Get the list of directories used when searching for "
+            "configuration files for the given application.\n"
+            ":param application: string. Name of the application. "
+            "\"\" by default.\n"
+            ":returns: The list of data directories.\n"
+            ".. warning::\n"
+            "   You should not assume those directories exist,"
+            " nor that they are writable."));
 
-      boost::python::def("listData", &pylistdata1,
-                         "listData(application, pattern) -> [string]\n"
-                         ":param application: string. The name of the application.\n"
-                         ":param patten: string. Wildcard pattern of the files to look for."
-                         " You can specify subdirectories using a '/' as a separator."
-                         " * by default.\n"
-                         ":return: a list of the complete, native paths of the files that matched.\n"
-                         "\n"
-                         "List data files matching the given pattern in all dataPaths(application) directories."
-                         " For each match, return the occurence from the first dataPaths prefix."
-                         " Directories are discarded.");
-      boost::python::def("listData", &pylistdata2);
+  m.def("dataPaths", [] { return path::dataPaths(); },
+        call_guard<gil_scoped_release>());
 
-      boost::python::def("confPaths", &pyconfpaths1,
-                         "confPaths(application) -> [string]\n"
-                         ":param application: string. Name of the application. \"\" by default.\n"
-                         ":return: The list of configuration directories.\n"
-                         "\n"
-                         "Get the list of directories used when searching for configuration files"
-                         " for the given application.\n"
-                         "\n"
-                         ".. warning::\n"
-                         "   You should not assume those directories exist,"
-                         " nor that they are writable."
-                         "\n");
+  m.def("binPaths", [] { return path::binPaths(); },
+        call_guard<gil_scoped_release>(),
+        doc(
+          ":returns: The list of directories used when searching for binaries.\n"
+          ".. warning::\n"
+          "   You should not assume those directories exist,"
+          " nor that they are writable."));
 
-      boost::python::def("confPaths", &pyconfpaths2);
+  m.def(
+    "libPaths", [] { return path::libPaths(); },
+    call_guard<gil_scoped_release>(),
+    doc(":returns: The list of directories used when searching for libraries.\n\n"
+        ".. warning::\n"
+        "   You should not assume those directories exist,"
+        " nor that they are writable."));
 
-      boost::python::def("dataPaths", &pydatapaths1,
-                         "dataPaths(application) -> [string]\n"
-                         ":param application: string. Name of the application. \"\" by default.\n"
-                         ":return: The list of data directories.\n"
-                         "\n"
-                         "Get the list of directories used when searching for configuration files"
-                         " for the given application.\n"
-                         "\n"
-                         ".. warning::\n"
-                         "   You should not assume those directories exist,"
-                         " nor that they are writable."
-                         "\n");
+  m.def("setWritablePath", &path::detail::setWritablePath,
+        call_guard<gil_scoped_release>(), "path"_a,
+        doc("Set the writable files path for users.\n"
+            ":param path: string. A path on the system.\n"
+            "Use an empty path to reset it to its default value."));
 
-      boost::python::def("dataPaths", &pydatapaths2);
+  m.def("userWritableDataPath", &path::userWritableDataPath,
+        call_guard<gil_scoped_release>(), "applicationName"_a, "fileName"_a,
+        doc("Get the writable data files path for users.\n"
+            ":param applicationName: string. Name of the application.\n"
+            ":param fileName: string. Name of the file.\n"
+            ":returns: The file path."));
 
-      boost::python::def("binPaths", &pybinpaths,
-                         "binPaths() -> [string]\n"
-                         ":return: The list of directories used when searching for binaries.\n"
-                         "\n"
-                         ".. warning::\n"
-                         "   You should not assume those directories exist,"
-                         " nor that they are writable."
-                         "\n");
+  m.def("userWritableConfPath", &path::userWritableConfPath,
+        call_guard<gil_scoped_release>(), "applicationName"_a, "fileName"_a,
+        doc("Get the writable configuration files path for users.\n"
+            ":param applicationName: string. Name of the application.\n"
+            ":param fileName: string. Name of the file.\n"
+            ":returns: The file path."));
 
-      boost::python::def("libPaths", &pylibpaths,
-                         "libPaths() -> [string]\n"
-                         ":return: The list of directories used when searching for libraries.\n"
-                         "\n"
-                         ".. warning::\n"
-                         "   You should not assume those directories exist,"
-                         " nor that they are writable."
-                         "\n");
+  m.def("sdkPrefixes", [] { return path::detail::getSdkPrefixes(); },
+        call_guard<gil_scoped_release>(),
+        doc("List of SDK prefixes.\n"
+            ":returns: The list of sdk prefixes."));
 
-      boost::python::def("setWritablePath", &qi::path::detail::setWritablePath,
-                         "setWritablePath(path) -> None\n"
-                         ":param path: string. A path on the system.\n"
-                         "\n"
-                         "Set the writable files path for users. "
-                         "Use an empty path to reset it to its initial value.");
+  m.def("addOptionalSdkPrefix", &path::detail::addOptionalSdkPrefix,
+        call_guard<gil_scoped_release>(), "prefix"_a,
+        doc("Add a new SDK path.\n"
+            ":param: an sdk prefix."));
 
-      boost::python::def("userWritableDataPath", &qi::path::userWritableDataPath,
-                         "userWritableDataPath(application, file) -> string\n"
-                         ":param application: string. Name of the application.\n"
-                         ":param file: string. Name of the file.\n"
-                         ":return: The file path.\n"
-                         "\n"
-                         "Get the writable data files path for users.");
-
-      boost::python::def("userWritableConfPath", &qi::path::userWritableConfPath,
-                         "userWritableConfPath(application, file) -> string\n"
-                         ":param application: string. Name of the application.\n"
-                         ":param file: string. Name of the file.\n"
-                         ":return: The file path.\n"
-                         "\n"
-                         "Get the writable configuration files path for users.");
-
-      boost::python::def("sdkPrefixes", &pysdkprefixes,
-                         "sdkPrefixes() -> list\n"
-                         ":return: The list of sdk prefix.\n"
-                         "\n"
-                         "List of SDK prefix.");
-
-      boost::python::def("addOptionalSdkPrefix", &qi::path::detail::addOptionalSdkPrefix,
-                         "addOptionalSdkPrefix(path)\n"
-                         ":param: an sdk prefix.\n"
-                         "\n"
-                         "add a new SDK path.");
-
-      boost::python::def("clearOptionalSdkPrefix", &qi::path::detail::clearOptionalSdkPrefix,
-                         "clearOptionalSdkPrefix()\n"
-                         "\n"
-                         "Clear all optional sdk prefix.");
-
-
-
-    }
-  }
+  m.def("clearOptionalSdkPrefix", &path::detail::clearOptionalSdkPrefix,
+        call_guard<gil_scoped_release>(),
+        doc("Clear all optional sdk prefixes."));
 }
+
+} // namespace py
+} // namespace qi

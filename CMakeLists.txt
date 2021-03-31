@@ -1,51 +1,39 @@
-cmake_minimum_required(VERSION 2.8)
-project(libqi-python)
-find_package(qibuild)
+cmake_minimum_required(VERSION 3.16)
 
 if(ANDROID)
-  return()
+  message(FATAL_ERROR "This project does not support Android, stopping.")
 endif()
 
-qi_sanitize_compile_flags(HIDDEN_SYMBOLS)
-qi_add_optional_package(PYTHON)
-qi_add_optional_package(PYTHON3)
-qi_add_optional_package(BOOST_PYTHON)
-qi_add_optional_package(BOOST_PYTHON3)
-# Generate each version in a separated build folder.
-# (include_directories clash otherwise)
+# Find our project CMake files in the dedicated subdirectory.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-add_subdirectory(tests)
+include(utils)
+include(set_globals)
 
-# Assume at least python-2.7 is installed.
-set(pyver "")
-add_subdirectory(py2py3 "python2")
-
-if (WITH_PYTHON3 AND WITH_BOOST_PYTHON3)
-  set(pyver "3")
-  add_subdirectory(py2py3 "python3")
+# Read the version of the library directly from the python file and sets it
+# as the version of the project.
+#
+# The file is expected to contain a line `__version__ = <version>`.
+set(_version_file ${CMAKE_CURRENT_SOURCE_DIR}/qi/_version.py)
+file(STRINGS ${_version_file} _version_strings REGEX version)
+set(_version_regex "__version__[ \t]*=[ \t]*['\"]([^'\"]+)['\"]")
+if(NOT _version_strings MATCHES "${_version_regex}")
+  message(FATAL_ERROR "Could not find the package version in file '${_version_file}'.")
 endif()
+parse_python_version(_version ${CMAKE_MATCH_1})
 
+project(libqi-python VERSION ${_version_VERSION_RELEASE})
 
-qi_create_lib(qimodule_python_plugin SHARED src/qimodule_python_plugin.cpp
-              SUBFOLDER qi/plugins/
-              DEPENDS qi qipython)
+option(QIPYTHON_STANDALONE
+       "If set, builds and installs the module as a standalone, ready to be \
+packaged as a wheel. Otherwise, builds and installs it, ready to be included \
+as part of a system (such as NAOqi) that contains its dependencies."
+       FALSE)
 
-if (QI_WITH_TESTS AND WITH_PYTHON AND NOT WIN32 AND NOT APPLE)
-  # run py.test.
-  # Note: a more generic solution would be to use qipy run & qitest collect
-  find_program(_PYTEST_EXECUTABLE py.test REQUIRED)
-  # note: surprisingly, the /usr/local/... is needed when pytest in
-  # installed under /usr/local.
-  qi_add_test(test_run_pytest ${_PYTEST_EXECUTABLE}
-      ARGUMENTS "-k" "not return_empty_object"
-      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/qi/test"
-      ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}:${QI_SDK_DIR}/lib/python2.7/site-packages:/usr/local/lib/python2.7/dist-packages:$ENV{PYTHONPATH};QI_ADDITIONAL_SDK_PREFIXES=${QI_SDK_DIR}")
+# Including this package creates the common options/flags/functions of qi projects.
+find_package(qibuild)
 
-  qi_add_test(test_run_pytest_return_empty_object ${_PYTEST_EXECUTABLE}
-      ARGUMENTS
-        "${CMAKE_CURRENT_SOURCE_DIR}/qi/test/test_return_empty_object.py"
-        "--exec_path"
-        "${CMAKE_CURRENT_BINARY_DIR}/sdk/bin/service_object_holder --qi-standalone --qi-listen-url tcp://127.0.0.1:0"
-      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/qi/test"
-      ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}:${QI_SDK_DIR}/lib/python2.7/site-packages:/usr/local/lib/python2.7/dist-packages:$ENV{PYTHONPATH};QI_ADDITIONAL_SDK_PREFIXES=${QI_SDK_DIR}")
-endif()
+include(set_dependencies)
+include(add_targets)
+include(set_install_rules)
+include(add_tests)

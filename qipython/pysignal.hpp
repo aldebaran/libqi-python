@@ -1,27 +1,62 @@
-#pragma once
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
 
-#ifndef _QIPYTHON_PYSIGNAL_HPP_
-#define _QIPYTHON_PYSIGNAL_HPP_
+#pragma once
 
-#include <boost/python.hpp>
+#ifndef QIPYTHON_PYSIGNAL_HPP
+#define QIPYTHON_PYSIGNAL_HPP
+
+#include <qipython/common.hpp>
 #include <qi/type/typeinterface.hpp>
 #include <qi/type/metasignal.hpp>
 #include <qi/anyobject.hpp>
-#include <qipython/api.hpp>
+#include <memory>
 
-namespace qi {
-  class SignalBase;
-  namespace py {
-    QIPYTHON_API boost::python::object makePySignal(const std::string &signature = "m");
-    QIPYTHON_API boost::python::object makePySignalFromBase(boost::shared_ptr<qi::SignalBase> sb);
-    QIPYTHON_API boost::python::object makePyProxySignal(const qi::AnyObject &obj, const qi::MetaSignal &signal);
-    QIPYTHON_API qi::SignalBase *getSignal(boost::python::object obj);
-    void export_pysignal();
-  }
-}
+namespace qi
+{
+namespace py
+{
 
-#endif  // _QIPYTHON_PYSIGNAL_HPP_
+using Signal = qi::SignalBase;
+using SignalPtr = std::shared_ptr<Signal>;
+
+namespace detail
+{
+
+struct ProxySignal
+{
+  AnyObject object;
+  unsigned int signalId;
+
+  ~ProxySignal();
+};
+
+pybind11::object signalConnect(SignalBase& sig,
+                               const pybind11::function& pyCallback,
+                               bool async);
+
+pybind11::object signalDisconnect(SignalBase& sig, SignalLink id, bool async);
+
+pybind11::object signalDisconnectAll(SignalBase& sig, bool async);
+
+pybind11::object proxySignalConnect(const AnyObject& obj,
+                                    unsigned int signalId,
+                                    const pybind11::function& callback,
+                                    bool async);
+
+pybind11::object proxySignalDisconnect(const AnyObject& obj,
+                                       SignalLink id,
+                                       bool async);
+} // namespace detail
+
+// Checks if an object is an instance of a signal.
+bool isSignal(const pybind11::object& obj);
+
+void exportSignal(pybind11::module& m);
+
+} // namespace py
+} // namespace qi
+
+#endif // QIPYTHON_PYSIGNAL_HPP

@@ -1,254 +1,157 @@
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
+
 #include <qipython/pyproperty.hpp>
-#include <qipython/pythreadsafeobject.hpp>
-#include <qipython/error.hpp>
+#include <qipython/common.hpp>
+#include <qipython/pysignal.hpp>
 #include <qipython/pyfuture.hpp>
-#include <boost/python.hpp>
-#include <qi/property.hpp>
+#include <qipython/pystrand.hpp>
+#include <pybind11/pybind11.h>
 #include <qi/anyobject.hpp>
-#include "pystrand.hpp"
 
-namespace qi { namespace py {
-    qi::AnyFunction makePyPropertyCb(const PyThreadSafeObject& callable)
-    {
-      return qi::AnyFunction::from([callable](const qi::AnyValue& value)
-      {
-        GILScopedLock lock;
-        PY_CATCH_ERROR(callable.object()(value.to<boost::python::object>()));
-      });
-    }
+namespace py = pybind11;
 
-    class PyProperty : public qi::GenericProperty {
-    public:
-      PyProperty()
-        : qi::GenericProperty(qi::TypeInterface::fromSignature("m"))
-      {
-      }
-
-      explicit PyProperty(const std::string &signature)
-        : qi::GenericProperty(qi::TypeInterface::fromSignature(signature))
-      {
-      }
-
-      ~PyProperty()
-      {
-        //the dtor can lock waiting for callback ends
-        GILScopedUnlock _unlock;
-        this->disconnectAll();
-      }
-
-      boost::python::object val() const
-      {
-        qi::Future<qi::AnyValue> f;
-        {
-          GILScopedUnlock _unlock;
-          f = qi::GenericProperty::value();
-          f.wait();
-        }
-        return f.value().to<boost::python::object>();
-      }
-
-      //change the name to avoid warning "hidden overload in base class" : YES WE KNOW :)
-      void setVal(boost::python::object obj)
-      {
-        GILScopedUnlock _;
-        qi::GenericProperty::setValue(obj);
-      }
-
-      boost::python::object addCallback(const boost::python::object& callable, bool _async = false) {
-        qi::uint64_t link;
-        if (!PyCallable_Check(callable.ptr()))
-          throw std::runtime_error("Not a callable");
-
-        PyThreadSafeObject obj(callable);
-
-        qi::Strand* strand = extractStrandFromCallable(callable);
-        if (strand)
-        {
-          GILScopedUnlock _unlock;
-          link = connect(SignalSubscriber{makePyPropertyCb(obj), strand});
-        }
-        else
-        {
-          GILScopedUnlock _unlock;
-          link = connect(makePyPropertyCb(obj));
-        }
-
-        if (_async)
-        {
-          return boost::python::object(toPyFuture(qi::Future<qi::uint64_t>(link)));
-        }
-        return boost::python::object(link);
-      }
-
-      boost::python::object disc(qi::uint64_t id, bool _async = false) {
-        bool r;
-        {
-          GILScopedUnlock _unlock;
-          r = disconnect(id);
-        }
-        if (_async)
-        {
-          return boost::python::object(toPyFuture(qi::Future<bool>(r)));
-        }
-
-        return boost::python::object(r);
-      }
-
-      boost::python::object discAll(bool _async = false) {
-        bool r;
-        {
-          GILScopedUnlock _unlock;
-          r = disconnectAll();
-        }
-        if (_async)
-        {
-          return boost::python::object(toPyFuture(qi::Future<qi::uint64_t>(r)));
-        }
-        return boost::python::object(r);
-      }
-    };
-
-    class PyProxyProperty {
-    public:
-      PyProxyProperty(qi::AnyObject obj, const qi::MetaProperty &signal)
-        : _obj(obj)
-        , _sigid(signal.uid())
-      {
-      }
-
-      ~PyProxyProperty()
-      {
-        //the dtor can lock waiting for callback ends
-        GILScopedUnlock _unlock;
-        _obj.reset();
-      }
-
-      boost::python::object value(bool _async = false) const {
-        qi::Future<AnyValue> f;
-        {
-          GILScopedUnlock _unlock;
-          f = _obj.property(_sigid);
-        }
-        return toPyFutureAsync(f, _async);
-      }
-
-      boost::python::object setValue(boost::python::object obj, bool _async = false) {
-        qi::Future<void> f;
-        {
-          GILScopedUnlock _unlock;
-          f = _obj.setProperty(_sigid, qi::AnyValue::from(obj));
-        }
-        return toPyFutureAsync(f, _async);
-      }
-
-      boost::python::object addCallback(const boost::python::object &callable, bool _async = false) {
-        PyThreadSafeObject obj(callable);
-        if (!PyCallable_Check(callable.ptr()))
-          throw std::runtime_error("Not a callable");
-
-        qi::Future<SignalLink> f;
-        qi::Strand* strand = extractStrandFromCallable(callable);
-        if (strand)
-        {
-          GILScopedUnlock _unlock;
-          f = _obj.connect(_sigid, SignalSubscriber{makePyPropertyCb(obj), strand});
-        }
-        else
-        {
-          GILScopedUnlock _unlock;
-          f = _obj.connect(_sigid, makePyPropertyCb(obj));
-        }
-        return toPyFutureAsync(f, _async);
-      }
-
-      boost::python::object disc(qi::uint64_t id, bool _async = false) {
-        qi::Future<void> f;
-        {
-          GILScopedUnlock _unlock;
-          f = _obj.disconnect(id);
-        }
-        return toPyFutureAsync(f, _async);
-      }
-
-    private:
-      qi::AnyObject _obj;
-      unsigned int  _sigid;
-    };
-
-    boost::python::object makePyProperty(const std::string &signature) {
-      return boost::python::object(boost::make_shared<PyProperty>(signature));
-    }
-
-    qi::PropertyBase *getProperty(boost::python::object obj) {
-      boost::shared_ptr<PyProperty> p = boost::python::extract< boost::shared_ptr<PyProperty> >(obj);
-      if (!p)
-        return 0;
-      return p.get();
-    }
-
-    boost::python::object makePyProxyProperty(const qi::AnyObject &obj, const qi::MetaProperty &prop) {
-      return boost::python::object(PyProxyProperty(obj, prop));
-    }
-
-    void export_pyproperty() {
-      //use a shared_ptr because class Property is not copyable.
-      boost::python::class_<PyProperty, boost::shared_ptr<PyProperty>, boost::noncopyable >("Property", boost::python::init<>())
-          .def(boost::python::init<const std::string &>())
-          .def("value", &PyProperty::val,
-               "value() -> value\n"
-               ":return: the value stored inside the property")
-
-          .def("setValue", &PyProperty::setVal, (boost::python::arg("value")),
-               "setValue(value) -> None\n"
-               ":param value: the value of the property\n"
-               "\n"
-               "set the value of the property")
-
-          .def("addCallback", &PyProperty::addCallback, (boost::python::arg("cb"), boost::python::arg("_async") = false),
-               "addCallback(cb) -> int\n"
-               ":param cb: the callback to call when the property changes\n"
-               "\n"
-               "add a callback to the property")
-
-          .def("connect", &PyProperty::addCallback, (boost::python::arg("cb"), boost::python::arg("_async") = false),
-               "connect(cb) -> int\n"
-               ":param cb: the callback to call when the property changes\n"
-               "\n"
-               "add a callback to the property")
-
-          .def("disconnect", &PyProperty::disc, (boost::python::arg("id"), boost::python::arg("_async") = false),
-               "disconnect(id) -> bool\n"
-               ":param id: the connection id returned by connect\n"
-               ":return: true on success\n"
-               "\n"
-               "Disconnect the callback associated to id.")
-
-          .def("disconnectAll", &PyProperty::disconnectAll, (boost::python::arg("_async") = false),
-               "disconnectAll() -> bool\n"
-               ":return: true on success\n"
-               "\n"
-               "disconnect all callback associated to the signal. This function should be used very carefully. It's extremely rare that it is needed.");
-
-      boost::python::class_<PyProxyProperty>("_ProxyProperty", boost::python::no_init)
-          .def("value", &PyProxyProperty::value, (boost::python::arg("_async") = false))
-          .def("setValue", &PyProxyProperty::setValue, (boost::python::arg("value"), boost::python::arg("_async") = false))
-          .def("addCallback", &PyProxyProperty::addCallback, (boost::python::arg("cb"), boost::python::arg("_async") = false))
-          .def("connect", &PyProxyProperty::addCallback, (boost::python::arg("cb"), boost::python::arg("_async") = false))
-          .def("disconnect", &PyProxyProperty::disc, (boost::python::arg("id"), boost::python::arg("_async") = false));
-    }
-  }
-}
-
-namespace boost
+namespace qi
 {
-    template <>
-    qi::py::PyProperty const volatile * get_pointer<class qi::py::PyProperty const volatile >(
-        class qi::py::PyProperty const volatile *c)
-        {
-            return c;
-        }
+namespace py
+{
+
+namespace
+{
+
+constexpr static const auto asyncArgName = "_async";
+
+pybind11::object propertyConnect(Property& prop,
+                                 const pybind11::function& pyCallback,
+                                 bool async)
+{
+  ::py::gil_scoped_acquire lock;
+  return detail::signalConnect(prop, pyCallback, async);
 }
+
+
+::py::object proxyPropertyConnect(detail::ProxyProperty& prop,
+                                  const ::py::function& callback,
+                                  bool async)
+{
+  ::py::gil_scoped_acquire lock;
+  return detail::proxySignalConnect(prop.object, prop.propertyId, callback, async);
+}
+
+} // namespace
+
+detail::ProxyProperty::~ProxyProperty()
+{
+  // The destructor can lock when waiting for callbacks to end.
+  ::py::gil_scoped_release unlock;
+  object.reset();
+}
+
+bool isProperty(const pybind11::object& obj)
+{
+  ::py::gil_scoped_acquire lock;
+  return ::py::isinstance<Property>(obj) ||
+         ::py::isinstance<detail::ProxyProperty>(obj);
+}
+
+void exportProperty(::py::module& m)
+{
+  using namespace ::py;
+  using namespace ::py::literals;
+
+  gil_scoped_acquire lock;
+
+  using PropertyPtr = std::unique_ptr<Property, DeleteOutsideGIL>;
+  class_<Property, PropertyPtr>(m, "Property")
+
+    .def(init([] { return new Property(TypeInterface::fromSignature("m")); }),
+         call_guard<gil_scoped_release>())
+
+    .def(init([](const std::string& sig) {
+           return PropertyPtr(new Property(TypeInterface::fromSignature(sig)),
+                              DeleteOutsideGIL());
+         }),
+         "signature"_a, call_guard<gil_scoped_release>())
+
+    .def("value",
+         [](const Property& prop, bool async) {
+           const auto fut = prop.value().async();
+           gil_scoped_acquire lock;
+           return resultObject(fut, async);
+         },
+         arg(asyncArgName) = false, call_guard<gil_scoped_release>(),
+         doc("Return the value stored inside the property."))
+
+    .def("setValue",
+         [](Property& prop, AnyValue value, bool async) {
+           const auto fut = toFuture(prop.setValue(std::move(value)).async());
+           ::py::gil_scoped_acquire lock;
+           return resultObject(fut, async);
+         },
+         call_guard<gil_scoped_release>(), "value"_a, arg(asyncArgName) = false,
+         doc("Set the value of the property."))
+
+    .def("addCallback", &propertyConnect, "cb"_a, arg(asyncArgName) = false,
+         doc("Add an event subscriber to the property.\n"
+             ":param cb: the callback to call when the property changes\n"
+             ":returns: the id of the property subscriber"))
+
+    .def("connect", &propertyConnect, "cb"_a, arg(asyncArgName) = false,
+         doc("Add an event subscriber to the property.\n"
+             ":param cb: the callback to call when the property changes\n"
+             ":returns: the id of the property subscriber"))
+
+    .def("disconnect",
+         [](Property& prop, SignalLink id, bool async) {
+           return detail::signalDisconnect(prop, id, async);
+         },
+         call_guard<gil_scoped_release>(), "id"_a, arg(asyncArgName) = false,
+         doc("Disconnect the callback associated to id.\n\n"
+             ":param id: the connection id returned by :method:connect or "
+             ":method:addCallback\n"
+             ":returns: true on success"))
+
+    .def("disconnectAll",
+         [](Property& prop, bool async) {
+           return detail::signalDisconnectAll(prop, async);
+         },
+         call_guard<gil_scoped_release>(), arg(asyncArgName) = false,
+         doc("Disconnect all subscribers associated to the property.\n\n"
+             "This function should be used with caution, as it may also remove "
+             "subscribers that were added by other callers.\n\n"
+             ":returns: true on success\n"));
+
+  class_<detail::ProxyProperty>(m, "_ProxyProperty")
+    .def("value",
+         [](const detail::ProxyProperty& prop, bool async) {
+           const auto fut = prop.object.property(prop.propertyId).async();
+           ::py::gil_scoped_acquire lock;
+           return resultObject(fut, async);
+         },
+         call_guard<gil_scoped_release>(), arg(asyncArgName) = false)
+    .def("setValue",
+         [](detail::ProxyProperty& prop, object pyValue, bool async) {
+           AnyValue value(unwrapAsRef(&pyValue));
+           gil_scoped_release unlock;
+           const auto fut =
+             toFuture(prop.object.setProperty(prop.propertyId, std::move(value))
+                        .async());
+           ::py::gil_scoped_acquire lock;
+           return resultObject(fut, async);
+         },
+         "value"_a, arg(asyncArgName) = false)
+    .def("addCallback", &proxyPropertyConnect, "cb"_a,
+         arg(asyncArgName) = false)
+    .def("connect", &proxyPropertyConnect, "cb"_a,
+         arg(asyncArgName) = false)
+    .def("disconnect",
+         [](detail::ProxyProperty& prop, SignalLink id, bool async) {
+           return detail::proxySignalDisconnect(prop.object, id, async);
+         },
+         "id"_a, arg(asyncArgName) = false);
+}
+
+} // namespace py
+} // namespace qi

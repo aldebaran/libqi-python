@@ -1,3 +1,8 @@
+#
+# Copyright (C) 2010 - 2020 Softbank Robotics Europe
+#
+# -*- coding: utf-8 -*-
+
 import time
 import sys
 import qi
@@ -5,8 +10,11 @@ import qi
 global usual_timeout
 usual_timeout = 10
 
+
 def has_succeeded(promise):
-    return promise.future().wait(usual_timeout) == qi.FutureState.FinishedWithValue
+    return promise.future().wait(usual_timeout) \
+           == qi.FutureState.FinishedWithValue
+
 
 def test_applicationsession():
 
@@ -19,7 +27,6 @@ def test_applicationsession():
     def has_connected():
         return has_succeeded(connecting)
 
-
     disconnecting = qi.Promise()
 
     def callback_disconn(s):
@@ -28,7 +35,6 @@ def test_applicationsession():
 
     def has_disconnected():
         return has_succeeded(disconnecting)
-
 
     sd = qi.Session()
     sd.listenStandalone("tcp://127.0.0.1:0")
@@ -46,6 +52,7 @@ def test_applicationsession():
     assert not has_disconnected()
 
     running = qi.Promise()
+
     def validate():
         running.setValue(None)
 
@@ -57,16 +64,10 @@ def test_applicationsession():
     def runApp():
         app.run()
 
-    qi.async(runApp)
+    qi.runAsync(runApp)
     assert has_run()
 
     app.session.close()
     time.sleep(0.01)
 
     assert has_disconnected()
-
-def main():
-    test_applicationsession()
-
-if __name__ == "__main__":
-    main()

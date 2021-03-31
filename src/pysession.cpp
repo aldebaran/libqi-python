@@ -1,16 +1,28 @@
 /*
-**  Copyright (C) 2013 Aldebaran Robotics
+**  Copyright (C) 2020 SoftBank Robotics Europe
 **  See COPYING for the license
 */
+
+#include <qipython/pysession.hpp>
+#include <qipython/common.hpp>
+#include <qipython/pytypes.hpp>
+#include <qipython/pyobject.hpp>
+#include <boost/smart_ptr/shared_ptr.hpp>
+#include <pybind11/operators.h>
 #include <thread>
 #include <future>
-#include <qipython/gil.hpp>
-#include <qipython/pysession.hpp>
 
-namespace qi {
-namespace py {
+namespace py = pybind11;
 
-boost::python::object makeSession()
+namespace qi
+{
+namespace py
+{
+
+namespace
+{
+
+::py::object makeSession()
 {
   // Ensures that the Session is deleted after the shared_pointer on it is deleted.
   // This is to mimic the behavior of qiApplication.
@@ -21,34 +33,45 @@ boost::python::object makeSession()
 
     void operator()(Session* p) const
     {
-      static const char* category = "qi.python.session.deleter";
-      static const char* msg = "Waiting for the shared pointer destruction...";
-      GILScopedUnlock x;
-      qi::async([=]{
+      constexpr const auto category = "qi.python.session.deleter";
+      constexpr const auto msg = "Waiting for the shared pointer destruction...";
+      ::py::gil_scoped_release x;
+      auto fut = std::async(std::launch::async, [=](std::unique_ptr<Session>) {
         while (!wptr.expired())
         {
           qiLogDebug(category) << msg;
-          qi::os::msleep(100);
+          constexpr const std::chrono::milliseconds delay(100);
+          std::this_thread::sleep_for(delay);
         }
         qiLogDebug(category) << msg << " done.";
-        delete p;
-      });
+      }, std::unique_ptr<Session>(p));
+      QI_IGNORE_UNUSED(fut);
     }
   };
 
-  auto ptr = boost::shared_ptr<qi::Session>(new qi::Session{}, Deleter{});
-  boost::get_deleter<Deleter>(ptr)->wptr = boost::weak_ptr<Session>{ptr};
-  return makePySession(ptr);
+  auto ptr = SessionPtr(new qi::Session{}, Deleter{});
+  boost::get_deleter<Deleter>(ptr)->wptr = ka::weak_ptr(ptr);
+
+  ::py::gil_scoped_acquire lock;
+  return py::makeSession(ptr);
 }
 
-boost::python::object makePySession(const SessionPtr& sess)
+} // namespace
+
+::py::object makeSession(SessionPtr sess)
 {
-  return qi::AnyValue::from(sess).to<boost::python::object>();
+  ::py::gil_scoped_acquire lock;
+  return toPyObject(sess);
 }
 
-void export_pysession() {
-  boost::python::def("Session", &makeSession);
+void exportSession(::py::module& m)
+{
+  using namespace ::py;
+
+  gil_scoped_acquire lock;
+
+  m.def("Session", []{ return makeSession(); });
 }
 
-}
-}
+} // namespace py
+} // namespace qi
