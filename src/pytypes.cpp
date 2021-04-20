@@ -258,19 +258,23 @@ T* instance(Args&&... args)
   return &it->second;
 }
 
-using DanglingReferencesStorage =
+/// A 'disowned' reference would be a reference that is not expected to be automatically destroyed,
+/// meaning we would have to manually call destroy on it. Such a storage enables us to associate
+/// such references to a type-erased value so that we can later retrieve them and destroy them
+/// manually.
+using DisownedReferencesStorage =
   boost::synchronized_value<std::map<void*, std::vector<AnyReference>>>;
 
-void storeDanglingReference(void* context, AnyReference ref) noexcept
+void storeDisownedReference(void* context, AnyReference ref) noexcept
 {
-  auto* storage = instance<DanglingReferencesStorage>();
+  auto* storage = instance<DisownedReferencesStorage>();
   auto syncStorage = storage->synchronize();
   (*syncStorage)[context].push_back(ref);
 }
 
-std::vector<AnyReference> unstoreDanglingReferences(void* context) noexcept
+std::vector<AnyReference> unstoreDisownedReferences(void* context) noexcept
 {
-  auto* storage = instance<DanglingReferencesStorage>();
+  auto* storage = instance<DisownedReferencesStorage>();
   auto syncStorage = storage->synchronize();
   auto it = syncStorage->find(context);
   if (it == syncStorage->end())
@@ -282,12 +286,38 @@ std::vector<AnyReference> unstoreDanglingReferences(void* context) noexcept
   return res;
 }
 
-std::size_t destroyDanglingReferences(void* context) noexcept
+std::size_t destroyDisownedReferences(void* context) noexcept
 {
-  const auto refs = unstoreDanglingReferences(context);
+  const auto refs = unstoreDisownedReferences(context);
   for (auto ref : refs)
     ref.destroy();
   return refs.size();
+}
+
+/// Associates a value to a Python object, so that it shares its lifetime.
+template<typename T>
+AnyReference associateValueToObj(::py::object& obj, T value)
+{
+  const auto res = AnyValue::from(std::move(value)).release();
+  auto pybindObjPtr = &obj;
+  storeDisownedReference(pybindObjPtr, res);
+
+  // Create a weak reference to the target Python object that will track its lifetime and execute a
+  // callback once it is destroyed.
+  //
+  // The callback ensures that all the references associated to the target object are destroyed, so
+  // that we can leak them here and still ensure that they will be properly destroyed once needed.
+  //
+  // The callback also takes a handle to the weakref Python object itself. We need to make sure that
+  // this weakref object lives as long as the target Python object so that the callback stays
+  // attached to the lifetime of the target object. To do that, we leak the weakref Python object
+  // by releasing it, and we manually decrement the reference count in the callback.
+  auto weakref = ::py::weakref(obj, ::py::cpp_function([=](::py::handle weakref) {
+    destroyDisownedReferences(pybindObjPtr);
+    weakref.dec_ref();
+  }));
+  weakref.release();
+  return res;
 }
 
 } // namespace
@@ -337,7 +367,7 @@ public:
 
   void destroy(void* storage) override
   {
-    destroyDanglingReferences(storage);
+    destroyDisownedReferences(storage);
     ::py::gil_scoped_acquire lock;
     delete asObjectPtr(&storage);
   }
@@ -363,7 +393,7 @@ class DynamicInterface : public ObjectInterfaceBase<Storage, qi::DynamicTypeInte
   {
     ::py::gil_scoped_acquire lock;
     const auto obj = this->asObjectPtr(&storage);
-    return unwrapAsRef(obj);
+    return unwrapAsRef(*obj);
   }
 
   void set(void** storage, AnyReference src) override
@@ -559,9 +589,9 @@ public:
       const ::py::object element = list[index];
 
       auto ref = AnyReference::from(element).clone();
-      // Store the dangling reference with the list as a context instead of the
+      // Store the disowned reference with the list as a context instead of the
       // iterator because the reference might outlive the iterator.
-      storeDanglingReference(listStorage, ref);
+      storeDisownedReference(listStorage, ref);
       return ref;
     }
 
@@ -578,7 +608,7 @@ public:
     void* clone(void* storage) override { return DefaultImpl::clone(storage); }
     void destroy(void* storage) override
     {
-      destroyDanglingReferences(storage);
+      destroyDisownedReferences(storage);
       return DefaultImpl::destroy(storage);
     }
     const TypeInfo& info() override { return DefaultImpl::info(); }
@@ -657,9 +687,9 @@ public:
       const auto element = ::py::reinterpret_borrow<::py::object>(it->second);
       const auto keyElementPair = std::make_pair(key, element);
       auto ref = AnyReference::from(keyElementPair).clone();
-      // Store the dangling reference with the list as a context instead of the
+      // Store the disowned reference with the list as a context instead of the
       // iterator because the reference might outlive the iterator.
-      storeDanglingReference(dictStorage, ref);
+      storeDisownedReference(dictStorage, ref);
       return ref;
     }
 
@@ -676,7 +706,7 @@ public:
     void* clone(void* storage) override { return DefaultImpl::clone(storage); }
     void destroy(void* storage) override
     {
-      destroyDanglingReferences(storage);
+      destroyDisownedReferences(storage);
       return DefaultImpl::destroy(storage);
     }
 
@@ -749,78 +779,87 @@ public:
     }
 
     auto ref = AnyReference::from(value).clone();
-    // Store the dangling reference with the list as a context instead of the
+    // Store the disowned reference with the list as a context instead of the
     // iterator because the reference might outlive the iterator.
-    storeDanglingReference(storage, ref);
+    storeDisownedReference(storage, ref);
     return ref;
   }
 };
 
 } // namespace types
 
-AnyReference unwrapAsRef(pybind11::object* obj)
+AnyReference unwrapAsRef(pybind11::object& obj)
 {
-  QI_ASSERT_NOT_NULL(obj);
-  QI_ASSERT_TRUE(*obj);
+  QI_ASSERT_TRUE(obj);
 
   ::py::gil_scoped_acquire lock;
 
-  if (obj->is_none())
+  if (obj.is_none())
     // The "void" value in AnyValue has no storage, so we can just release it
     // without risk of a leak.
     return AnyValue::makeVoid().release();
 
   if (   ::py::isinstance<::py::ellipsis>(*obj)
-      || PyComplex_CheckExact(obj->ptr())
+      || PyComplex_CheckExact(obj.ptr())
       || ::py::isinstance<::py::memoryview>(*obj)
       || ::py::isinstance<::py::slice>(*obj)
       || ::py::isinstance<::py::module>(*obj))
   {
     throw std::runtime_error("The Python type " +
-                             std::string(::py::str(obj->get_type())) +
+                             std::string(::py::str(obj.get_type())) +
                              " is not handled");
   }
 
-  if (PyLong_CheckExact(obj->ptr()))
-    return AnyReference(instance<types::IntInterface<::py::object>>(), obj);
+  // Pointer to the libpython C library python object.
+  const auto pyObjPtr = obj.ptr();
 
-  if (PyFloat_CheckExact(obj->ptr()))
-    return AnyReference(instance<types::FloatInterface<::py::object>>(), obj);
+  // Pointer to the pybind C++ library python object.
+  const auto pybindObjPtr = &obj;
 
-  if (PyBool_Check(obj->ptr()))
-    return AnyReference(instance<types::BoolInterface<::py::object>>(), obj);
+  if (PyLong_CheckExact(pyObjPtr))
+    return AnyReference(instance<types::IntInterface<::py::object>>(), pybindObjPtr);
 
-  if (PyUnicode_CheckExact(obj->ptr()))
-    return AnyReference(instance<types::StrInterface<::py::object>>(), obj);
+  if (PyFloat_CheckExact(pyObjPtr))
+    return AnyReference(instance<types::FloatInterface<::py::object>>(), pybindObjPtr);
 
-  if (PyBytes_CheckExact(obj->ptr()) || PyByteArray_CheckExact(obj->ptr()))
-    return AnyReference(instance<types::StringBufferInterface<::py::object>>(), obj);
+  if (PyBool_Check(pyObjPtr))
+    return AnyReference(instance<types::BoolInterface<::py::object>>(), pybindObjPtr);
 
-  if (PyTuple_CheckExact(obj->ptr()))
+  if (PyUnicode_CheckExact(pyObjPtr))
+    return AnyReference(instance<types::StrInterface<::py::object>>(), pybindObjPtr);
+
+  if (PyBytes_CheckExact(pyObjPtr) || PyByteArray_CheckExact(pyObjPtr))
+    return AnyReference(instance<types::StringBufferInterface<::py::object>>(), pybindObjPtr);
+
+  if (PyTuple_CheckExact(pyObjPtr))
     return AnyReference(instance<types::StructuredIterableInterface<::py::object>>(
-                          ::py::tuple(*obj).size()),
-                        obj);
+                          ::py::tuple(obj).size()),
+                        pybindObjPtr);
 
   // Checks if it is AnySet, meaning it can be a set or a frozenset.
-  if (PyAnySet_CheckExact(obj->ptr()))
+  if (PyAnySet_CheckExact(pyObjPtr))
     return AnyReference(instance<types::StructuredIterableInterface<::py::object>>(
-                          ::py::set(*obj).size()),
-                        obj);
+                          ::py::set(obj).size()),
+                        pybindObjPtr);
 
-  if (PyList_CheckExact(obj->ptr()))
-    return AnyReference(instance<types::ListInterface<::py::object, ::py::list>>(), obj);
+  if (PyList_CheckExact(pyObjPtr))
+    return AnyReference(instance<types::ListInterface<::py::object, ::py::list>>(), pybindObjPtr);
 
-  if (PyDict_CheckExact(obj->ptr()))
-    return AnyReference(instance<types::DictInterface<::py::object>>(), obj);
+  if (PyDict_CheckExact(pyObjPtr))
+    return AnyReference(instance<types::DictInterface<::py::object>>(), pybindObjPtr);
 
-  auto qiObj = py::toObject(*obj);
-  const auto res = AnyValue::from(std::move(qiObj)).release();
-  storeDanglingReference(obj, res);
-  ::py::weakref(*obj, ::py::cpp_function([=](::py::handle ref) {
-    destroyDanglingReferences(obj);
-    ref.dec_ref(); // release the reference to the weak reference itself.
-  })).release(); // leak the weak reference, it will be released by the callback.
-  return res;
+  // At the moment in libqi, the `LogLevel` type is not registered in the qi type system. If we use
+  // `AnyValue::from` with a `LogLevel` value, we get a value with a dummy type that cannot be set
+  // or read. Furthermore, when registered with the `QI_TYPE_ENUM` macro, enumeration types are
+  // treated as `int` values. This forces us to cast it here as an `int` to try to stay compatible.
+  if (::py::isinstance<LogLevel>(obj))
+  {
+    const auto logLevel = obj.cast<LogLevel>();
+    const auto logLevelValue = static_cast<int>(logLevel);
+    return associateValueToObj(obj, logLevelValue);
+  }
+
+  return associateValueToObj(obj, py::toObject(obj));
 }
 
 void registerTypes()

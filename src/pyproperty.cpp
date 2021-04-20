@@ -133,7 +133,7 @@ void exportProperty(::py::module& m)
          call_guard<gil_scoped_release>(), arg(asyncArgName) = false)
     .def("setValue",
          [](detail::ProxyProperty& prop, object pyValue, bool async) {
-           AnyValue value(unwrapAsRef(&pyValue));
+           AnyValue value(unwrapAsRef(pyValue));
            gil_scoped_release unlock;
            const auto fut =
              toFuture(prop.object.setProperty(prop.propertyId, std::move(value))

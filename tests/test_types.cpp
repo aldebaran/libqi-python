@@ -401,3 +401,14 @@ TEST_F(TypePassing, ReverseDict)
   };
   EXPECT_TRUE(getService().call<bool>("func", expected));
 }
+
+TEST_F(TypePassing, LogLevel)
+{
+  exec(
+      "class TestService:\n"
+      "    def func(self):\n"
+      "        return qi.LogLevel.Info\n"
+      );
+  registerService();
+  EXPECT_EQ(qi::LogLevel_Info, getService().call<int>("func"));
+}
