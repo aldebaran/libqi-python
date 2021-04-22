@@ -842,7 +842,7 @@ AnyReference unwrapAsRef(pybind11::object& obj)
                           ::py::set(obj).size()),
                         pybindObjPtr);
 
-  if (PyList_CheckExact(pyObjPtr))
+  if (PyList_CheckExact(pyObjPtr) || PyDictViewSet_Check(pyObjPtr) || PyDictValues_Check(pyObjPtr))
     return AnyReference(instance<types::ListInterface<::py::object, ::py::list>>(), pybindObjPtr);
 
   if (PyDict_CheckExact(pyObjPtr))
