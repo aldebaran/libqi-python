@@ -1,4 +1,4 @@
-set(LIBQI_VERSION 1.8.5
+set(LIBQI_VERSION 1.8.6
     CACHE STRING
     "Version of LibQi to use. If not empty, it will be checked against the \
 version in the `package.xml` file in the libqi sources.")
