@@ -49,8 +49,8 @@ pybind11::object unwrapValue(AnyReference val);
 /// introspected and a `qi::py::Object` is constructed out of it by executing
 /// `qi::py::toObject`.
 ///
-/// @pre `obj != nullptr && *obj`
-AnyReference unwrapAsRef(pybind11::object* obj);
+/// @pre `obj`
+AnyReference unwrapAsRef(pybind11::object& obj);
 
 void registerTypes();
 

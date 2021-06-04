@@ -146,7 +146,7 @@ namespace detail
                                [&] {
                                  currentObject =
                                    reinterpret_borrow<object>(src);
-                                 return qi::py::unwrapAsRef(&currentObject);
+                                 return qi::py::unwrapAsRef(currentObject);
                                });
       return value.isValid();
     }

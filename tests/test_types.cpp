@@ -401,3 +401,50 @@ TEST_F(TypePassing, ReverseDict)
   };
   EXPECT_TRUE(getService().call<bool>("func", expected));
 }
+
+TEST_F(TypePassing, LogLevel)
+{
+  exec(
+      "class TestService:\n"
+      "    def func(self):\n"
+      "        return qi.LogLevel.Info\n"
+      );
+  registerService();
+  EXPECT_EQ(qi::LogLevel_Info, getService().call<int>("func"));
+}
+
+TEST_F(TypePassing, DictViews)
+{
+  exec(
+      "class TestService:\n"
+      "    def func(self, kind):\n"
+      "        d = dict(one=1, two=2)\n"
+      "        if kind == 0:\n"
+      "            return d.keys()\n"
+      "        if kind == 1:\n"
+      "            return d.items()\n"
+      "        return d.values()\n"
+      );
+  registerService();
+
+  { // Keys
+    using Keys = std::set<std::string>;
+    const Keys expected{ "one", "two" };
+    EXPECT_EQ(expected, getService().call<Keys>("func", 0));
+  }
+
+  { // Items
+    using Items = std::set<std::pair<std::string, int>>;
+    const Items expected{ { "one", 1 }, { "two", 2 } };
+    EXPECT_EQ(expected, getService().call<Items>("func", 1));
+  }
+
+
+  { // Values
+    using Values = std::vector<int>;
+    const Values expected{ 1, 2 };
+    auto values = getService().call<Values>("func", 2);
+    std::sort(values.begin(), values.end());
+    EXPECT_EQ(expected, values);
+  }
+}
