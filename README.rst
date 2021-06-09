@@ -122,7 +122,7 @@ The project's dependencies on LibQi depends on the building mode:
   - `LIBQI_GIT_TAG`
 
 It is possible to skip the download step and use an existing source directory by
-setting its path as the `FETCH_CONTENT_SOURCE_DIR_LIBQI` CMake variable. The
+setting its path as the `FETCHCONTENT_SOURCE_DIR_LIBQI` CMake variable. The
 build system will still check that the version of the sources matches the
 `LIBQI_VERSION` value if it is set.
 
