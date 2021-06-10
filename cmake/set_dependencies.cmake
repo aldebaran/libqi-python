@@ -44,42 +44,30 @@
 
 include_guard(GLOBAL)
 
-set(BOOST_VERSION 1.64
-    CACHE STRING
-    "Version of Boost to use. It will be used as the argument to the
-`find_package(Boost)` call.")
+# Version of Boost to use. It will be used as the argument to the `find_package(Boost)` call.
+overridable_variable(BOOST_VERSION 1.64)
 
-set(PYBIND11_VERSION 2.5.0
-    CACHE STRING
-    "Version of pybind11 to use.")
+# Version of pybind11 to use.
+overridable_variable(PYBIND11_VERSION 2.5.0)
 
-set(PYBIND11_GIT_REPOSITORY https://github.com/pybind/pybind11
-    CACHE STRING
-    "URL of the git repository from which to download pybind11. For more \
-details, see CMake `ExternalProject` module documentation of the \
-`GIT_REPOSITORY` argument.")
+# URL of the git repository from which to download pybind11. For more details, see CMake
+# `ExternalProject` module documentation of the `GIT_REPOSITORY` argument.
+overridable_variable(PYBIND11_GIT_REPOSITORY https://github.com/pybind/pybind11)
 
-set(PYBIND11_GIT_TAG v${PYBIND11_VERSION}
-    CACHE STRING
-    "Git branch name, tag or commit hash to checkout for pybind11. \
-For more details, see CMake `ExternalProject` module documentation of the \
-`GIT_TAG` argument.")
+# Git branch name, tag or commit hash to checkout for pybind11. For more details, see CMake
+# `ExternalProject` module documentation of the `GIT_TAG` argument.
+overridable_variable(PYBIND11_GIT_TAG v${PYBIND11_VERSION})
 
-set(GOOGLETEST_VERSION 1.10.0
-    CACHE STRING
-    "Version of googletest to use.")
+# Version of googletest to use.
+overridable_variable(GOOGLETEST_VERSION 1.10.0)
 
-set(GOOGLETEST_GIT_REPOSITORY https://github.com/google/googletest.git
-    CACHE STRING
-    "URL of the git repository from which to download googletest. For more \
-details, see CMake `ExternalProject` module documentation of the \
-`GIT_REPOSITORY` argument.")
+# URL of the git repository from which to download googletest. For more details, see CMake
+# `ExternalProject` module documentation of the `GIT_REPOSITORY` argument.
+overridable_variable(GOOGLETEST_GIT_REPOSITORY https://github.com/google/googletest.git)
 
-set(GOOGLETEST_GIT_TAG release-${GOOGLETEST_VERSION}
-    CACHE STRING
-    "Git branch name, tag or commit hash to checkout for googletest. \
-For more details, see CMake `ExternalProject` module documentation of the \
-`GIT_TAG` argument.")
+# Git branch name, tag or commit hash to checkout for googletest. For more details, see CMake
+# `ExternalProject` module documentation of the `GIT_TAG` argument.
+overridable_variable(GOOGLETEST_GIT_TAG release-${GOOGLETEST_VERSION})
 
 set(PYTHON_VERSION_STRING "" CACHE STRING "Version of Python to look for. This \
 variable can be specified by tools run directly from Python to enforce the \

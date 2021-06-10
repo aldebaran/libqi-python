@@ -1,22 +1,10 @@
-set(LIBQI_VERSION 1.8.6
-    CACHE STRING
-    "Version of LibQi to use. If not empty, it will be checked against the \
-version in the `package.xml` file in the libqi sources.")
+overridable_variable(LIBQI_VERSION 1.8.6)
 
 # Our github clone is sometimes late or is missing tags, so we enable
 # customisation of the URL at configuration time, so users can use another clone.
-set(LIBQI_GIT_REPOSITORY https://github.com/aldebaran/libqi.git
-    CACHE STRING
-    "URL of the git repository from which to download LibQi. For more details, \
-see CMake `ExternalProject` module documentation of the `GIT_REPOSITORY` \
-argument.")
+overridable_variable(LIBQI_GIT_REPOSITORY https://github.com/aldebaran/libqi.git)
 
-set(LIBQI_GIT_TAG qi-framework-v${LIBQI_VERSION}
-    CACHE STRING
-    "Git branch name, tag or commit hash to checkout for LibQi. \
-For more details, see CMake `ExternalProject` module documentation of the \
-`GIT_TAG` argument.")
-
+overridable_variable(LIBQI_GIT_TAG qi-framework-v${LIBQI_VERSION})
 
 if(LIBQI_VERSION)
   message(STATUS "LibQi: expected version is \"${LIBQI_VERSION}\"")
