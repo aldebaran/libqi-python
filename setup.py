@@ -25,7 +25,7 @@ setup(
     version=version['__version__'],
     description='LibQi Python bindings',
     long_description=long_description,
-    long_description_content_type='text/markdown',
+    long_description_content_type='text/x-rst',
     keywords=['libqi', 'qi', 'naoqi',
               'softbank', 'robotics', 'aldebaran',
               'robot', 'nao', 'pepper', 'romeo'],

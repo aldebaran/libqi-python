@@ -64,7 +64,7 @@ std::string Cat::meow(int volume)
   return "meow";
 }
 
-bool Cat::eat(const Mouse& m)
+bool Cat::eat(const Mouse&)
 {
   qiLogInfo() << "eating mouse";
   return true;

@@ -83,3 +83,24 @@ function(set_install_rpath)
     endif()
   endforeach()
 endfunction()
+
+# Creates a variable that can be overridden by the user from either the
+# command-line, the cache or the environment.
+# The order of preference is:
+#   - the value from the variable in cache (or the command-line, since setting
+#   a variable from the command-line automatically adds it to the cache).
+#   - the value from the variable in the environment.
+#   - the default value for the variable.
+function(overridable_variable name default_value)
+  # The variable already exists in the cache. It's the preferred value, so we
+  # don't change it.
+  if(DEFINED CACHE{${name}})
+    return()
+  endif()
+
+  set(value ${default_value})
+  if(DEFINED ENV{${name}})
+    set(value $ENV{${name}})
+  endif()
+  set(${name} ${value} PARENT_SCOPE)
+endfunction()
