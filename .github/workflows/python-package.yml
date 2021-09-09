@@ -2,7 +2,7 @@ name: Python package
 
 on:
   push:
-    # tags: "qi-python-v*"
+    tags: "qi-python-v*"
   workflow_dispatch:
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Build boost
       run: |
-        ci/install_boost.sh
+        bash ci/install_boost.sh
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
