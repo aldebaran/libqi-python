@@ -31,6 +31,12 @@ jobs:
     - name: Run setup
       run: |
         python setup.py bdist_wheel -- -DBOOST_ROOT=$HOME/opt/boost_1_64_0
+    - name: Archive build artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: |
+          dist
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
