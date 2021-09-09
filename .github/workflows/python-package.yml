@@ -10,6 +10,7 @@ jobs:
 
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         python-version: [3.5, 3.6, 3.7, 3.8]
@@ -29,7 +30,7 @@ jobs:
         pip install pytest flake8 pytest-timeout cmake>=3.16 ninja qibuild>=3.15 scikit-build
     - name: Run setup
       run: |
-        python setup.py bdist_wheel
+        python setup.py bdist_wheel -- -DBOOST_ROOT=$HOME/opt/boost_1_64_0
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
