@@ -1,4 +1,4 @@
-overridable_variable(LIBQI_VERSION 1.8.7)
+overridable_variable(LIBQI_VERSION 2.0.0)
 
 # Our github clone is sometimes late or is missing tags, so we enable
 # customisation of the URL at configuration time, so users can use another clone.
