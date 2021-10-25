@@ -5,10 +5,12 @@ import os
 import platform
 from setuptools import find_packages
 from skbuild import setup
+from packaging import version
 
-py_version = platform.python_version_tuple()
-if py_version < ('3', '5'):
-  raise RuntimeError('Python 3.5+ is required.')
+py_version = version.parse(platform.python_version())
+min_version = version.parse('3.5')
+if py_version < min_version:
+    raise RuntimeError('Python 3.5+ is required.')
 
 here = os.path.abspath(os.path.dirname(__file__))
 
