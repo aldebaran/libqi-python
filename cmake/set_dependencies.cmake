@@ -45,7 +45,7 @@
 include_guard(GLOBAL)
 
 # Version of Boost to use. It will be used as the argument to the `find_package(Boost)` call.
-overridable_variable(BOOST_VERSION 1.64)
+overridable_variable(BOOST_VERSION 1.77)
 
 # Version of pybind11 to use.
 overridable_variable(PYBIND11_VERSION 2.5.0)
