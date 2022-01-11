@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
+#include <boost/optional/optional_io.hpp>
 #include "common.hpp"
 
 namespace py = pybind11;
