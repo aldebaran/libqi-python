@@ -48,7 +48,7 @@ include_guard(GLOBAL)
 overridable_variable(BOOST_VERSION 1.77)
 
 # Version of pybind11 to use.
-overridable_variable(PYBIND11_VERSION 2.5.0)
+overridable_variable(PYBIND11_VERSION 2.9.0)
 
 # URL of the git repository from which to download pybind11. For more details, see CMake
 # `ExternalProject` module documentation of the `GIT_REPOSITORY` argument.

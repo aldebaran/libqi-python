@@ -270,10 +270,11 @@ namespace detail
 boost::optional<ObjectUid> readObjectUid(const ::py::object& obj)
 {
   GILAcquire lock;
-  const ::py::bytes qiObjectUid = ::py::getattr(obj, qiObjectUidAttributeName, ::py::none());
-  if (!qiObjectUid.is_none())
-    return deserializeObjectUid(static_cast<std::string>(qiObjectUid));
-  return {};
+  const auto qiObjectUidObj = ::py::getattr(obj, qiObjectUidAttributeName, ::py::none());
+  if (qiObjectUidObj.is_none())
+    return {};
+  const auto qiObjectUid = qiObjectUidObj.cast<std::string>();
+  return deserializeObjectUid(qiObjectUid);
 }
 
 void writeObjectUid(const pybind11::object& obj, const ObjectUid& uid)

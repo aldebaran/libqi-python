@@ -15,6 +15,10 @@ qiLogCategory("TestQiPython");
 
 namespace py = pybind11;
 
+PYBIND11_EMBEDDED_MODULE(qi, m) {
+  qi::py::exportAll(m);
+}
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
@@ -24,9 +28,8 @@ int main(int argc, char **argv)
   boost::optional<qi::Application> app;
   app.emplace(argc, argv);
 
-  py::module m("qi");
-  qi::py::exportAll(m);
-  py::globals()["qi"] = m;
+  py::globals()["qi"] = py::module::import("qi");
+
 
   int ret = EXIT_FAILURE;
   {
