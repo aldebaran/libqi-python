@@ -240,7 +240,7 @@ TEST_F(PropertyDisconnectTest, AddedCallbackCanBeDisconnectedAsync)
 
   auto success = qi::py::test::toFutOf<bool>(
     pyProp.attr("disconnect")(id, py::arg("_async") = true)
-      .cast<qi::py::Future>());
+      .cast<qi::py::Future>()).value();
   EXPECT_TRUE(success);
 }
 
