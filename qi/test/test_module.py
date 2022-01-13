@@ -41,3 +41,34 @@ def test_module_service():
 
     cat = session.service("Cat")
     assert cat.meow(3) == 'meow'
+
+
+def test_module_service_object_lifetime():
+    session = qi.Session()
+    session.listenStandalone("tcp://localhost:0")
+    session.loadServiceRename("moduletest.Cat", "", "truc")
+    cat = session.service("Cat")
+
+    # We use `del` to release the reference to an object, but there is no
+    # guarantee that the interpreter will finalize the object right away.
+    # In CPython, this is "mostly" guaranteed as long as it is the last
+    # reference to the object and that there is no cyclic dependency of
+    # reference anywhere that might hold the reference.
+    # As there is no practical alternative, we consider that assuming the
+    # object is finalized immediately is an acceptable hypothesis.
+
+    # Purr has a property, Play has a signal, Sleep has none.
+    sleep = cat.makeSleep()
+    assert cat.nbSleep() == 1
+    del sleep
+    assert cat.nbSleep() == 0
+
+    purr = cat.makePurr()
+    assert cat.nbPurr() == 1
+    del purr
+    assert cat.nbPurr() == 0
+
+    play = cat.makePlay()
+    assert cat.nbPlay() == 1
+    del play
+    assert cat.nbPlay() == 0
