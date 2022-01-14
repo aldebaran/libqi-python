@@ -74,6 +74,45 @@ WithArgcArgv<ka::Decay<F>, ExtraArgs...> withArgcArgv(F&& f)
   return { std::forward<F>(f) };
 }
 
+// Wrapper for the `qi::ApplicationSession` class.
+//
+// Stores the `::py::object` that represents the associated `Session` object.
+//
+// This `::py::object` holds an `AnyObject` that wraps the `Session` object.
+// Maintaining the `AnyObject` is necessary so that any properties or signals
+// wrappers that the `::py::object` also holds for this qi Object don't hold
+// an expired pointer to the `AnyObject`.
+class ApplicationSession : private qi::ApplicationSession
+{
+public:
+  using Base = qi::ApplicationSession;
+  using Config = Base::Config;
+
+  template<typename... Args>
+  explicit ApplicationSession(Args&&... args)
+    : Base(std::forward<Args>(args)...)
+    , _session(py::makeSession(Base::session()))
+  {
+  }
+
+  ~ApplicationSession()
+  {
+    GILAcquire lock;
+    _session.release().dec_ref();
+  }
+
+  using Base::stop;
+  using Base::atRun;
+
+  void run() { return Base::run(); }
+  void startSession() { return Base::startSession(); }
+  std::string url() const { return Base::url().str(); }
+  ::py::object session() const { return _session; }
+
+private:
+  ::py::object _session;
+};
+
 } // namespace
 
 void exportApplication(::py::module& m)
@@ -128,18 +167,12 @@ void exportApplication(::py::module& m)
                 doc(
                   "Add a callback that will be executed when run() is called."))
 
-    .def_property_readonly("url",
-                           [](const ApplicationSession& app) {
-                             return app.url().str();
-                           },
+    .def_property_readonly("url", &ApplicationSession::url,
                            call_guard<GILRelease>(),
                            doc("The url given to the Application. It's the url "
                                "used to connect the session."))
 
-    .def_property_readonly("session",
-                           [](const ApplicationSession& app) {
-                             return makeSession(app.session());
-                           },
+    .def_property_readonly("session", &ApplicationSession::session,
                            doc("The session associated to the application."));
 }
 

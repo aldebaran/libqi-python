@@ -38,17 +38,11 @@ pybind11::object propertyConnect(Property& prop,
                                   bool async)
 {
   GILAcquire lock;
-  return detail::proxySignalConnect(prop.object, prop.propertyId, callback, async);
+  detail::AnyObjectGILSafe object(prop.object);
+  return detail::proxySignalConnect(object, prop.propertyId, callback, async);
 }
 
 } // namespace
-
-detail::ProxyProperty::~ProxyProperty()
-{
-  // The destructor can lock when waiting for callbacks to end.
-  GILRelease unlock;
-  object.reset();
-}
 
 bool isProperty(const pybind11::object& obj)
 {
@@ -127,7 +121,8 @@ void exportProperty(::py::module& m)
   class_<detail::ProxyProperty>(m, "_ProxyProperty")
     .def("value",
          [](const detail::ProxyProperty& prop, bool async) {
-           const auto fut = prop.object.property(prop.propertyId).async();
+           detail::AnyObjectGILSafe object(prop.object);
+           const auto fut = object->property(prop.propertyId).async();
            GILAcquire lock;
            return resultObject(fut, async);
          },
@@ -136,8 +131,9 @@ void exportProperty(::py::module& m)
          [](detail::ProxyProperty& prop, object pyValue, bool async) {
            AnyValue value(unwrapAsRef(pyValue));
            GILRelease unlock;
+           detail::AnyObjectGILSafe object(prop.object);
            const auto fut =
-             toFuture(prop.object.setProperty(prop.propertyId, std::move(value))
+             toFuture(object->setProperty(prop.propertyId, std::move(value))
                         .async());
            GILAcquire lock;
            return resultObject(fut, async);
@@ -149,7 +145,7 @@ void exportProperty(::py::module& m)
          arg(asyncArgName) = false)
     .def("disconnect",
          [](detail::ProxyProperty& prop, SignalLink id, bool async) {
-           return detail::proxySignalDisconnect(prop.object, id, async);
+           return detail::proxySignalDisconnect(detail::AnyObjectGILSafe(prop.object), id, async);
          },
          "id"_a, arg(asyncArgName) = false);
 }
