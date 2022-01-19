@@ -6,6 +6,7 @@
 
 #include <qipython/pypath.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <qi/path.hpp>
@@ -23,14 +24,14 @@ void exportPath(::py::module& m)
   using namespace ::py;
   using namespace ::py::literals;
 
-  gil_scoped_acquire lock;
+  GILAcquire lock;
 
-  m.def("sdkPrefix", &path::sdkPrefix, call_guard<gil_scoped_release>(),
+  m.def("sdkPrefix", &path::sdkPrefix, call_guard<GILRelease>(),
         doc(":returns: The SDK prefix path. It is always a complete, native "
             "path.\n"));
 
   m.def(
-    "findBin", &path::findBin, call_guard<gil_scoped_release>(), "name"_a,
+    "findBin", &path::findBin, call_guard<GILRelease>(), "name"_a,
     "searchInPath"_a = false,
     doc("Look for a binary in the system.\n"
         ":param name: string. The full name of the binary, or just the name.\n"
@@ -40,14 +41,14 @@ void exportPath(::py::module& m)
         "otherwise."));
 
   m.def(
-    "findLib", &path::findLib, call_guard<gil_scoped_release>(), "name"_a,
+    "findLib", &path::findLib, call_guard<GILRelease>(), "name"_a,
     doc("Look for a library in the system.\n"
         ":param name: string. The full name of the library, or just the name.\n"
         ":returns: the complete, native path to the file found. An empty string "
         "otherwise."));
 
   m.def(
-    "findConf", &path::findConf, call_guard<gil_scoped_release>(),
+    "findConf", &path::findConf, call_guard<GILRelease>(),
     "application"_a, "file"_a, "excludeUserWritablePath"_a = false,
     doc("Look for a configuration file in the system.\n"
         ":param application: string. The name of the application.\n"
@@ -59,7 +60,7 @@ void exportPath(::py::module& m)
         "otherwise."));
 
   m.def(
-    "findData", &path::findData, call_guard<gil_scoped_release>(),
+    "findData", &path::findData, call_guard<GILRelease>(),
     "application"_a, "file"_a, "excludeUserWritablePath"_a = false,
     doc("Look for a file in all dataPaths(application) directories. Return the "
         "first match.\n"
@@ -76,7 +77,7 @@ void exportPath(::py::module& m)
     [](const std::string& applicationName, const std::string& pattern) {
       return path::listData(applicationName, pattern);
     },
-    call_guard<gil_scoped_release>(), "applicationName"_a, "pattern"_a,
+    call_guard<GILRelease>(), "applicationName"_a, "pattern"_a,
     doc("List data files matching the given pattern in all "
         "dataPaths(application) directories.\n"
         " For each match, return the occurrence from the first dataPaths prefix."
@@ -91,12 +92,12 @@ void exportPath(::py::module& m)
   m.def("listData", [](const std::string& applicationName) {
           return path::listData(applicationName);
         },
-        call_guard<gil_scoped_release>(), "applicationName"_a);
+        call_guard<GILRelease>(), "applicationName"_a);
 
   m.def("confPaths", [](const std::string& applicationName) {
           return path::confPaths(applicationName);
         },
-        call_guard<gil_scoped_release>(),
+        call_guard<GILRelease>(),
         "applicationName"_a,
         doc("Get the list of directories used when searching for "
             "configuration files for the given application.\n"
@@ -108,12 +109,12 @@ void exportPath(::py::module& m)
             " nor that they are writable."));
 
   m.def("confPaths", [] { return path::confPaths(); },
-        call_guard<gil_scoped_release>());
+        call_guard<GILRelease>());
 
   m.def("dataPaths", [](const std::string& applicationName) {
           return path::dataPaths(applicationName);
         },
-        call_guard<gil_scoped_release>(),
+        call_guard<GILRelease>(),
         "applicationName"_a,
         doc("Get the list of directories used when searching for "
             "configuration files for the given application.\n"
@@ -125,10 +126,10 @@ void exportPath(::py::module& m)
             " nor that they are writable."));
 
   m.def("dataPaths", [] { return path::dataPaths(); },
-        call_guard<gil_scoped_release>());
+        call_guard<GILRelease>());
 
   m.def("binPaths", [] { return path::binPaths(); },
-        call_guard<gil_scoped_release>(),
+        call_guard<GILRelease>(),
         doc(
           ":returns: The list of directories used when searching for binaries.\n"
           ".. warning::\n"
@@ -137,44 +138,44 @@ void exportPath(::py::module& m)
 
   m.def(
     "libPaths", [] { return path::libPaths(); },
-    call_guard<gil_scoped_release>(),
+    call_guard<GILRelease>(),
     doc(":returns: The list of directories used when searching for libraries.\n\n"
         ".. warning::\n"
         "   You should not assume those directories exist,"
         " nor that they are writable."));
 
   m.def("setWritablePath", &path::detail::setWritablePath,
-        call_guard<gil_scoped_release>(), "path"_a,
+        call_guard<GILRelease>(), "path"_a,
         doc("Set the writable files path for users.\n"
             ":param path: string. A path on the system.\n"
             "Use an empty path to reset it to its default value."));
 
   m.def("userWritableDataPath", &path::userWritableDataPath,
-        call_guard<gil_scoped_release>(), "applicationName"_a, "fileName"_a,
+        call_guard<GILRelease>(), "applicationName"_a, "fileName"_a,
         doc("Get the writable data files path for users.\n"
             ":param applicationName: string. Name of the application.\n"
             ":param fileName: string. Name of the file.\n"
             ":returns: The file path."));
 
   m.def("userWritableConfPath", &path::userWritableConfPath,
-        call_guard<gil_scoped_release>(), "applicationName"_a, "fileName"_a,
+        call_guard<GILRelease>(), "applicationName"_a, "fileName"_a,
         doc("Get the writable configuration files path for users.\n"
             ":param applicationName: string. Name of the application.\n"
             ":param fileName: string. Name of the file.\n"
             ":returns: The file path."));
 
   m.def("sdkPrefixes", [] { return path::detail::getSdkPrefixes(); },
-        call_guard<gil_scoped_release>(),
+        call_guard<GILRelease>(),
         doc("List of SDK prefixes.\n"
             ":returns: The list of sdk prefixes."));
 
   m.def("addOptionalSdkPrefix", &path::detail::addOptionalSdkPrefix,
-        call_guard<gil_scoped_release>(), "prefix"_a,
+        call_guard<GILRelease>(), "prefix"_a,
         doc("Add a new SDK path.\n"
             ":param: an sdk prefix."));
 
   m.def("clearOptionalSdkPrefix", &path::detail::clearOptionalSdkPrefix,
-        call_guard<gil_scoped_release>(),
+        call_guard<GILRelease>(),
         doc("Clear all optional sdk prefixes."));
 }
 

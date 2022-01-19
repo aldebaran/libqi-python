@@ -5,6 +5,7 @@
 
 #include <qipython/pyclock.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qi/clock.hpp>
 #include <pybind11/pybind11.h>
 
@@ -31,7 +32,7 @@ void exportClock(::py::module& m)
   using namespace ::py;
   using namespace ::py::literals;
 
-  gil_scoped_acquire lock;
+  GILAcquire lock;
 
   m.def("clockNow", &now<Clock>,
         doc(":returns: current timestamp on qi::Clock, as a number of nanoseconds"));

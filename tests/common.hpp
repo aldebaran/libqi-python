@@ -9,6 +9,7 @@
 #define QIPYTHON_TESTS_COMMON_HPP
 
 #include <qipython/pyfuture.hpp>
+#include <qipython/pyguard.hpp>
 #include <gtest/gtest.h>
 #include <boost/optional.hpp>
 #include <pybind11/pybind11.h>
@@ -44,25 +45,25 @@ struct Execute
 {
   Execute()
   {
-    pybind11::gil_scoped_acquire lock;
+    GILAcquire lock;
     _locals.emplace();
   }
 
   ~Execute()
   {
-    pybind11::gil_scoped_acquire lock;
+    GILAcquire lock;
     _locals.reset();
   }
 
   void exec(const std::string& str)
   {
-    pybind11::gil_scoped_acquire lock;
+    GILAcquire lock;
     pybind11::exec(str, pybind11::globals(), *_locals);
   }
 
   pybind11::object eval(const std::string& str)
   {
-    pybind11::gil_scoped_acquire lock;
+    GILAcquire lock;
     return pybind11::eval(str, pybind11::globals(), *_locals);
   }
 

@@ -6,6 +6,7 @@
 #include <ka/errorhandling.hpp>
 #include <ka/functional.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qipython/pyexport.hpp>
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
@@ -29,7 +30,7 @@ int main(int argc, char **argv)
 
   int ret = EXIT_FAILURE;
   {
-    py::gil_scoped_release unlock;
+    qi::py::GILRelease unlock;
     ret = RUN_ALL_TESTS();
 
     // Destroy the application outside of the GIL to avoid deadlocks, but while

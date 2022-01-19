@@ -25,12 +25,12 @@ using Promise = qi::Promise<AnyValue>;
 // future or its value.
 inline pybind11::object resultObject(const Future& fut, bool async)
 {
-  pybind11::gil_scoped_acquire lock;
+  GILAcquire lock;
   if (async)
     return castToPyObject(fut);
 
   // Wait for the future outside of the GIL.
-  auto res = invokeGuarded<pybind11::gil_scoped_release>(qi::SrcFuture{}, fut);
+  auto res = invokeGuarded<GILRelease>(qi::SrcFuture{}, fut);
   return castToPyObject(res);
 }
 

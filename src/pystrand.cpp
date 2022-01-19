@@ -5,6 +5,7 @@
 
 #include <qipython/pystrand.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <pybind11/pybind11.h>
 
 qiLogCategory("qi.python.strand");
@@ -32,7 +33,7 @@ bool isUnboundMethod(const ::py::function& func, const ::py::object& object)
   QI_ASSERT_TRUE(func);
   QI_ASSERT_TRUE(object);
 
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto dir = ::py::reinterpret_steal<::py::list>(PyObject_Dir(object.ptr()));
   for (const ::py::handle attrName : dir)
   {
@@ -77,7 +78,7 @@ bool isUnboundMethod(const ::py::function& func, const ::py::object& object)
 {
   QI_ASSERT_TRUE(partialFunc);
 
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
 
   constexpr const char* argsAttr = "args";
   constexpr const char* funcAttr = "func";
@@ -147,7 +148,7 @@ bool isUnboundMethod(const ::py::function& func, const ::py::object& object)
 {
   QI_ASSERT_TRUE(func);
 
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto self = getMethodSelf(func);
   if (!self.is_none())
     return self;
@@ -158,7 +159,7 @@ bool isUnboundMethod(const ::py::function& func, const ::py::object& object)
 
 StrandPtr strandOfFunction(const ::py::function& func)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return strandOf(getSelf(func));
 }
 
@@ -166,7 +167,7 @@ StrandPtr strandOf(const ::py::object& obj)
 {
   QI_ASSERT_TRUE(obj);
 
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
 
   if (obj.is_none())
     return {};
@@ -202,7 +203,7 @@ bool isMultithreaded(const ::py::object& obj)
 {
   QI_ASSERT_TRUE(obj);
 
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto pyqisig = ::py::getattr(obj, objectAttributeThreadingName, ::py::none());
   if (pyqisig.is_none())
     return false;
@@ -213,7 +214,7 @@ void exportStrand(::py::module& m)
 {
   using namespace ::py;
 
-  gil_scoped_acquire lock;
+  GILAcquire lock;
 
   class_<Strand, StrandPtr>(m, "Strand")
     .def(init([] {

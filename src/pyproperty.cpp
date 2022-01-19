@@ -5,6 +5,7 @@
 
 #include <qipython/pyproperty.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qipython/pysignal.hpp>
 #include <qipython/pyfuture.hpp>
 #include <qipython/pystrand.hpp>
@@ -27,7 +28,7 @@ pybind11::object propertyConnect(Property& prop,
                                  const pybind11::function& pyCallback,
                                  bool async)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return detail::signalConnect(prop, pyCallback, async);
 }
 
@@ -36,7 +37,7 @@ pybind11::object propertyConnect(Property& prop,
                                   const ::py::function& callback,
                                   bool async)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return detail::proxySignalConnect(prop.object, prop.propertyId, callback, async);
 }
 
@@ -45,13 +46,13 @@ pybind11::object propertyConnect(Property& prop,
 detail::ProxyProperty::~ProxyProperty()
 {
   // The destructor can lock when waiting for callbacks to end.
-  ::py::gil_scoped_release unlock;
+  GILRelease unlock;
   object.reset();
 }
 
 bool isProperty(const pybind11::object& obj)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return ::py::isinstance<Property>(obj) ||
          ::py::isinstance<detail::ProxyProperty>(obj);
 }
@@ -61,36 +62,36 @@ void exportProperty(::py::module& m)
   using namespace ::py;
   using namespace ::py::literals;
 
-  gil_scoped_acquire lock;
+  GILAcquire lock;
 
   using PropertyPtr = std::unique_ptr<Property, DeleteOutsideGIL>;
   class_<Property, PropertyPtr>(m, "Property")
 
     .def(init([] { return new Property(TypeInterface::fromSignature("m")); }),
-         call_guard<gil_scoped_release>())
+         call_guard<GILRelease>())
 
     .def(init([](const std::string& sig) {
            return PropertyPtr(new Property(TypeInterface::fromSignature(sig)),
                               DeleteOutsideGIL());
          }),
-         "signature"_a, call_guard<gil_scoped_release>())
+         "signature"_a, call_guard<GILRelease>())
 
     .def("value",
          [](const Property& prop, bool async) {
            const auto fut = prop.value().async();
-           gil_scoped_acquire lock;
+           GILAcquire lock;
            return resultObject(fut, async);
          },
-         arg(asyncArgName) = false, call_guard<gil_scoped_release>(),
+         arg(asyncArgName) = false, call_guard<GILRelease>(),
          doc("Return the value stored inside the property."))
 
     .def("setValue",
          [](Property& prop, AnyValue value, bool async) {
            const auto fut = toFuture(prop.setValue(std::move(value)).async());
-           ::py::gil_scoped_acquire lock;
+           GILAcquire lock;
            return resultObject(fut, async);
          },
-         call_guard<gil_scoped_release>(), "value"_a, arg(asyncArgName) = false,
+         call_guard<GILRelease>(), "value"_a, arg(asyncArgName) = false,
          doc("Set the value of the property."))
 
     .def("addCallback", &propertyConnect, "cb"_a, arg(asyncArgName) = false,
@@ -107,7 +108,7 @@ void exportProperty(::py::module& m)
          [](Property& prop, SignalLink id, bool async) {
            return detail::signalDisconnect(prop, id, async);
          },
-         call_guard<gil_scoped_release>(), "id"_a, arg(asyncArgName) = false,
+         call_guard<GILRelease>(), "id"_a, arg(asyncArgName) = false,
          doc("Disconnect the callback associated to id.\n\n"
              ":param id: the connection id returned by :method:connect or "
              ":method:addCallback\n"
@@ -117,7 +118,7 @@ void exportProperty(::py::module& m)
          [](Property& prop, bool async) {
            return detail::signalDisconnectAll(prop, async);
          },
-         call_guard<gil_scoped_release>(), arg(asyncArgName) = false,
+         call_guard<GILRelease>(), arg(asyncArgName) = false,
          doc("Disconnect all subscribers associated to the property.\n\n"
              "This function should be used with caution, as it may also remove "
              "subscribers that were added by other callers.\n\n"
@@ -127,18 +128,18 @@ void exportProperty(::py::module& m)
     .def("value",
          [](const detail::ProxyProperty& prop, bool async) {
            const auto fut = prop.object.property(prop.propertyId).async();
-           ::py::gil_scoped_acquire lock;
+           GILAcquire lock;
            return resultObject(fut, async);
          },
-         call_guard<gil_scoped_release>(), arg(asyncArgName) = false)
+         call_guard<GILRelease>(), arg(asyncArgName) = false)
     .def("setValue",
          [](detail::ProxyProperty& prop, object pyValue, bool async) {
            AnyValue value(unwrapAsRef(pyValue));
-           gil_scoped_release unlock;
+           GILRelease unlock;
            const auto fut =
              toFuture(prop.object.setProperty(prop.propertyId, std::move(value))
                         .async());
-           ::py::gil_scoped_acquire lock;
+           GILAcquire lock;
            return resultObject(fut, async);
          },
          "value"_a, arg(asyncArgName) = false)

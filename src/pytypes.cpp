@@ -11,6 +11,7 @@
 #include <qi/numeric.hpp>
 #include <qi/assert.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qipython/pytypes.hpp>
 #include <qipython/pyfuture.hpp>
 #include <qipython/pyobject.hpp>
@@ -32,7 +33,7 @@ struct ObjectDecRef
   ::py::handle obj;
   void operator()() const
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     obj.dec_ref();
   }
 };
@@ -56,20 +57,20 @@ struct ValueToPyObject
 
   void visitUnknown(AnyReference value)
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     // Encapsulate the value in Capsule.
     result = ::py::capsule(value.rawValue());
   }
 
   void visitVoid()
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     result = ::py::none();
   }
 
   void visitInt(int64_t value, bool isSigned, int byteSize)
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     // byteSize is 0 when the value is a boolean.
     if (byteSize == 0)
       result = ::py::bool_(static_cast<bool>(value));
@@ -80,13 +81,13 @@ struct ValueToPyObject
 
   void visitFloat(double value, int /*byteSize*/)
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     result = ::py::float_(value);
   }
 
   void visitString(char* data, size_t len)
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
 
     if (!data)
     {
@@ -121,7 +122,7 @@ struct ValueToPyObject
 
   void visitList(AnyIterator it, AnyIterator end)
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     ::py::list l;
     for (; it != end; ++it)
       l.append(unwrapValue(*it));
@@ -135,7 +136,7 @@ struct ValueToPyObject
 
   void visitMap(AnyIterator it, AnyIterator end)
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     ::py::dict d;
     for (; it != end; ++it)
       d[unwrapValue((*it)[0])] = (*it)[1];
@@ -150,7 +151,7 @@ struct ValueToPyObject
     const auto type = go.type;
     const auto ptr = type->ptrFromStorage(&go.value);
 
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     if (auto obj = tryToCastObjectTo<Future>(type, ptr))
     {
       result = *obj;
@@ -167,7 +168,7 @@ struct ValueToPyObject
 
   void visitAnyObject(AnyObject& obj)
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     result = py::toPyObject(obj);
   }
 
@@ -182,7 +183,7 @@ struct ValueToPyObject
   {
     const auto len = tuple.size();
 
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     if (annotations.empty())
     {
       // Unnamed tuple
@@ -203,7 +204,7 @@ struct ValueToPyObject
 
   void visitDynamic(AnyReference pointee)
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     result = unwrapValue(pointee);
   }
 
@@ -212,7 +213,7 @@ struct ValueToPyObject
     /* TODO: zerocopy, sub-buffers... */
     const auto dataWithSize = value.asRaw();
 
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     result = ::py::reinterpret_steal<::py::object>(
       PyByteArray_FromStringAndSize(dataWithSize.first, dataWithSize.second));
   }
@@ -224,7 +225,7 @@ struct ValueToPyObject
 
   void visitOptional(AnyReference v)
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     result = unwrapValue(v.content());
   }
 
@@ -324,7 +325,7 @@ AnyReference associateValueToObj(::py::object& obj, T value)
 
 ::py::object unwrapValue(AnyReference val)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   ::py::object result;
   ValueToPyObject tpo(result);
   typeDispatch(tpo, val);
@@ -355,20 +356,20 @@ public:
     if (ptr)
       return ptr;
 
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     return new Storage;
   }
 
   void* clone(void* storage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     return new Storage(asObject(&storage));
   }
 
   void destroy(void* storage) override
   {
     destroyDisownedReferences(storage);
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     delete asObjectPtr(&storage);
   }
 
@@ -379,7 +380,7 @@ public:
 
   bool less(void* a, void* b) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto& objA = asObject(&a);
     const auto& objB = asObject(&b);
     return objA < objB;
@@ -391,14 +392,14 @@ class DynamicInterface : public ObjectInterfaceBase<Storage, qi::DynamicTypeInte
 {
   AnyReference get(void* storage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto obj = this->asObjectPtr(&storage);
     return unwrapAsRef(*obj);
   }
 
   void set(void** storage, AnyReference src) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     this->asObject(storage) = unwrapValue(src);
   }
 };
@@ -410,7 +411,7 @@ class IntInterface : public ObjectInterfaceBase<Storage, qi::IntTypeInterface>
 
   std::int64_t get(void* storage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto& obj = this->asObject(&storage);
     return numericConvertBound<std::int64_t>(::py::cast<Repr>(obj));
   }
@@ -418,7 +419,7 @@ class IntInterface : public ObjectInterfaceBase<Storage, qi::IntTypeInterface>
   void set(void** storage, std::int64_t val) override
   {
     QI_ASSERT_NOT_NULL(storage);
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     this->asObject(storage) = ::py::int_(static_cast<Repr>(val));
   }
 
@@ -434,7 +435,7 @@ public:
 
   double get(void* storage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto& obj = this->asObject(&storage);
     return numericConvertBound<double>(::py::cast<Repr>(obj));
   }
@@ -442,7 +443,7 @@ public:
   void set(void** storage, double val) override
   {
     QI_ASSERT_NOT_NULL(storage);
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     this->asObject(storage) = ::py::float_(static_cast<Repr>(val));
   }
 
@@ -455,7 +456,7 @@ class BoolInterface : public ObjectInterfaceBase<Storage, qi::IntTypeInterface>
 public:
   int64_t get(void* storage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto& obj = this->asObject(&storage);
     return static_cast<int64_t>(::py::cast<bool>(obj));
   }
@@ -463,7 +464,7 @@ public:
   void set(void** storage, int64_t val) override
   {
     QI_ASSERT_NOT_NULL(storage);
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     this->asObject(storage) = ::py::bool_(static_cast<bool>(val));
   }
 
@@ -477,14 +478,14 @@ class StrInterface : public ObjectInterfaceBase<Storage, qi::StringTypeInterface
 public:
   StringTypeInterface::ManagedRawString get(void* storage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     ::py::str obj = this->asObject(&storage);
     return makeManagedString(std::string(obj));
   }
 
   void set(void** storage, const char* ptr, size_t sz) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
      this->asObject(storage) = ::py::str(ptr, sz);
   }
 };
@@ -496,7 +497,7 @@ class StringBufferInterface : public ObjectInterfaceBase<Storage,
 public:
   StringTypeInterface::ManagedRawString get(void* storage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     ::py::buffer obj = this->asObject(&storage);
     const auto info = obj.request();
     QI_ASSERT_TRUE(info.ndim == 1);
@@ -506,7 +507,7 @@ public:
 
   void set(void** storage, const char* ptr, size_t sz) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
      this->asObject(storage) = ::py::bytes(ptr, sz);
   }
 };
@@ -527,7 +528,7 @@ public:
 
   std::vector<void*> get(void* storage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto& obj = this->asObject(&storage);
 
     std::vector<void*> res;
@@ -544,7 +545,7 @@ public:
   {
     QI_ASSERT_TRUE(index < _size);
 
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto& obj = this->asObject(&storage);
     // AppleClang 8 wrongly requires a ForwardIterator on `std::next`, which
     // `pybind11::iterator` is not. We use advance instead.
@@ -584,7 +585,7 @@ public:
       auto* listStorage = iter.first;
       const auto index = iter.second;
 
-      ::py::gil_scoped_acquire lock;
+      GILAcquire lock;
       ListType list = listType->asObject(&listStorage);
       const ::py::object element = list[index];
 
@@ -625,14 +626,14 @@ public:
 
   size_t size(void* storage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     ListType list = this->asObject(&storage);
     return list.size();
   }
 
   void pushBack(void** storage, void* valueStorage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     ::py::object obj = this->asObject(storage);
     if (::py::isinstance<::py::list>(obj))
     {
@@ -677,7 +678,7 @@ public:
       auto* dictStorage = iter.first;
       const auto index = iter.second;
 
-      ::py::gil_scoped_acquire lock;
+      GILAcquire lock;
       ::py::dict dict = dictType->asObject(&dictStorage);
       // AppleClang 8 wrongly requires a ForwardIterator on `std::next`, which
       // `pybind11::iterator` is not. We use advance instead.
@@ -729,14 +730,14 @@ public:
 
   size_t size(void* storage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     ::py::dict dict = this->asObject(&storage);
     return dict.size();
   }
 
   AnyIterator begin(void* storage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     ::py::dict dict = this->asObject(&storage);
     return AnyValue(AnyReference(instance<IteratorInterface>(), new Iterator(storage, 0)),
                     // Do not copy, but free the value, so basically the AnyValue
@@ -755,7 +756,7 @@ public:
 
   void insert(void** storage, void* keyStorage, void* valueStorage) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     ::py::dict dict = this->asObject(storage);
     ::py::object key = keyType()->asObject(&keyStorage);
     ::py::object value = elementType()->asObject(&valueStorage);
@@ -764,7 +765,7 @@ public:
 
   AnyReference element(void** storage, void* keyStorage, bool autoInsert) override
   {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     ::py::dict dict = this->asObject(storage);
     ::py::object key = keyType()->asObject(&keyStorage);
 
@@ -792,7 +793,7 @@ AnyReference unwrapAsRef(pybind11::object& obj)
 {
   QI_ASSERT_TRUE(obj);
 
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
 
   if (obj.is_none())
     // The "void" value in AnyValue has no storage, so we can just release it

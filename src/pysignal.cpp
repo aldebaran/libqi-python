@@ -5,11 +5,10 @@
 
 #include <qipython/pysignal.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qipython/pystrand.hpp>
 #include <qipython/pyfuture.hpp>
 #include <qipython/pyobject.hpp>
-#include <qipython/pyfuture.hpp>
-#include <qipython/pystrand.hpp>
 #include <qi/signal.hpp>
 #include <qi/anyobject.hpp>
 
@@ -30,7 +29,7 @@ constexpr static const auto asyncArgName = "_async";
 AnyReference dynamicCallFunction(const GILGuardedObject& func,
                                  const AnyReferenceVector& args)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   ::py::list pyArgs(args.size());
   ::py::size_t i = 0;
   for (const auto& arg : args)
@@ -45,7 +44,7 @@ template<typename F>
                      const ::py::function& pyCallback,
                      bool async)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto strand = strandOfFunction(pyCallback);
 
   SignalSubscriber subscriber(AnyFunction::fromDynamicFunction(
@@ -65,7 +64,7 @@ template<typename F>
                                 const ::py::function& callback,
                                 bool async)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return detail::proxySignalConnect(sig.object, sig.signalId, callback, async);
 }
 
@@ -77,7 +76,7 @@ namespace detail
 detail::ProxySignal::~ProxySignal()
 {
   // The destructor can lock waiting for callbacks to end.
-  ::py::gil_scoped_release unlock;
+  GILRelease unlock;
   object.reset();
 }
 
@@ -86,10 +85,10 @@ detail::ProxySignal::~ProxySignal()
                            const ::py::function& callback,
                            bool async)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return connect(
     [&](const SignalSubscriber& sub) {
-      ::py::gil_scoped_release unlock;
+      GILRelease unlock;
       return sig.connectAsync(sub).andThen(FutureCallbackType_Sync,
                                            [](const SignalSubscriber& sub) {
                                              return sub.link();
@@ -105,7 +104,7 @@ detail::ProxySignal::~ProxySignal()
     return AnyValue::from(success);
   });
 
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return resultObject(fut, async);
 }
 
@@ -116,7 +115,7 @@ detail::ProxySignal::~ProxySignal()
     return AnyValue::from(success);
   });
 
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return resultObject(fut, async);
 }
 
@@ -125,10 +124,10 @@ detail::ProxySignal::~ProxySignal()
                                 const ::py::function& callback,
                                 bool async)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return connect(
     [&](const SignalSubscriber& sub) {
-      ::py::gil_scoped_release unlock;
+      GILRelease unlock;
       return obj.connect(signalId, sub).async();
     },
     callback, async);
@@ -139,10 +138,10 @@ detail::ProxySignal::~ProxySignal()
                                    bool async)
 {
   const auto fut = [&] {
-    ::py::gil_scoped_release unlock;
+    GILRelease unlock;
     return toFuture(obj.disconnect(id));
   }();
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return resultObject(fut, async);
 }
 
@@ -150,7 +149,7 @@ detail::ProxySignal::~ProxySignal()
 
 bool isSignal(const ::py::object& obj)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return ::py::isinstance<Signal>(obj) ||
          ::py::isinstance<detail::ProxySignal>(obj);
 }
@@ -160,7 +159,7 @@ void exportSignal(::py::module& m)
   using namespace ::py;
   using namespace ::py::literals;
 
-  gil_scoped_acquire lock;
+  GILAcquire lock;
 
   using SignalPtr = std::unique_ptr<Signal, DeleteOutsideGIL>;
   class_<Signal, SignalPtr>(m, "Signal")
@@ -171,12 +170,12 @@ void exportSignal(::py::module& m)
              onSub = qi::futurizeOutput(onConnect);
            return new Signal(signature, onSub);
          }),
-         call_guard<gil_scoped_release>(),
+         call_guard<GILRelease>(),
          "signature"_a = "m", "onConnect"_a = std::function<void(bool)>())
 
     .def(
       "connect", &detail::signalConnect,
-      call_guard<gil_scoped_release>(),
+      call_guard<GILRelease>(),
       "callback"_a, arg(asyncArgName) = false,
       doc(
         "Connect the signal to a callback, the callback will be called each "
@@ -187,13 +186,13 @@ void exportSignal(::py::module& m)
         ":returns: the connection id of the registered callback."))
 
     .def("disconnect", &detail::signalDisconnect,
-         call_guard<gil_scoped_release>(), "id"_a, arg(asyncArgName) = false,
+         call_guard<GILRelease>(), "id"_a, arg(asyncArgName) = false,
          doc("Disconnect the callback associated to id.\n"
              ":param id: the connection id returned by connect.\n"
              ":returns: true on success."))
 
     .def("disconnectAll", &detail::signalDisconnectAll,
-         call_guard<gil_scoped_release>(), arg(asyncArgName) = false,
+         call_guard<GILRelease>(), arg(asyncArgName) = false,
          doc("Disconnect all subscribers associated to the property.\n\n"
              "This function should be used with caution, as it may also remove "
              "subscribers that were added by other callers.\n\n"
@@ -203,7 +202,7 @@ void exportSignal(::py::module& m)
          [](Signal& sig, args pyArgs) {
            const auto args =
              AnyReference::from(pyArgs).content().asTupleValuePtr();
-           gil_scoped_release unlock;
+           GILRelease unlock;
            sig.trigger(args);
          },
          doc("Trigger the signal"));
@@ -220,7 +219,7 @@ void exportSignal(::py::module& m)
          [](detail::ProxySignal& sig, args pyArgs) {
            const auto args =
              AnyReference::from(pyArgs).content().asTupleValuePtr();
-           gil_scoped_release unlock;
+           GILRelease unlock;
            sig.object.metaPost(sig.signalId, args);
   });
 }
