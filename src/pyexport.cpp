@@ -5,6 +5,7 @@
 
 #include <qipython/pyexport.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qipython/pytypes.hpp>
 #include <qipython/pyapplication.hpp>
 #include <qipython/pyfuture.hpp>
@@ -31,7 +32,7 @@ void exportAll(pybind11::module& module)
 {
   registerTypes();
 
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
 
   exportFuture(module);
   exportSignal(module);

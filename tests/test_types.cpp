@@ -7,6 +7,7 @@
 #include <qi/jsoncodec.hpp>
 #include <qipython/pysession.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <boost/thread.hpp>
 #include "common.hpp"
 
@@ -25,14 +26,14 @@ struct PybindObjectCast
 {
   qi::AnyValue operator()(py::object obj)
   {
-    py::gil_scoped_acquire lock;
+    qi::py::GILAcquire lock;
     return obj.cast<qi::AnyValue>();
   }
 
 };
 
 template<typename Convert>
-struct ToAnyValueConversionTest : py::gil_scoped_acquire, testing::Test
+struct ToAnyValueConversionTest : qi::py::GILAcquire, testing::Test
 {
   template<typename T>
   qi::AnyValue toAnyValue(T&& t)
@@ -110,7 +111,7 @@ TYPED_TEST(ToAnyValueConversionTest, PyBytes)
   EXPECT_TRUE(v.template to<py::bytes>().equal(py::bytes("donuts")));
 }
 
-struct ToAnyValueObjectConversionTest : py::gil_scoped_acquire, testing::Test {};
+struct ToAnyValueObjectConversionTest : qi::py::GILAcquire, testing::Test {};
 
 TEST_F(ToAnyValueObjectConversionTest, AnyValueFromReturnsDynamic)
 {
@@ -123,7 +124,7 @@ TEST_F(ToAnyValueObjectConversionTest, AnyValueFromReturnsDynamic)
 // to `PybindObjectCast` conversion with the underlying object which should
 // already be tested.
 
-struct ToAnyValueListConversionTest : py::gil_scoped_acquire, testing::Test
+struct ToAnyValueListConversionTest : qi::py::GILAcquire, testing::Test
 {
   static std::vector<int> toVec(qi::AnyReference listRef)
   {
@@ -157,7 +158,7 @@ TEST_F(ToAnyValueListConversionTest, PybindObjectCastReturnsList)
 
 using DictTypes = testing::Types<py::dict, py::kwargs>;
 template<typename Dict>
-struct ToAnyValueDictConversionTest : py::gil_scoped_acquire, testing::Test
+struct ToAnyValueDictConversionTest : qi::py::GILAcquire, testing::Test
 {
   static std::map<std::string, int> toMap(qi::AnyReference map)
   {
@@ -198,7 +199,7 @@ TYPED_TEST(ToAnyValueDictConversionTest, PybindObjectCastReturnsMap)
 
 using TupleTypes = testing::Types<py::tuple, py::args>;
 template <typename Tuple>
-struct ToAnyValueTupleConversionTest : py::gil_scoped_acquire, testing::Test
+struct ToAnyValueTupleConversionTest : qi::py::GILAcquire, testing::Test
 {
   static std::tuple<int, std::string, std::int8_t> toTuple(qi::AnyReference tuple)
   {
@@ -241,7 +242,7 @@ protected:
     session = qi::makeSession();
     session->listenStandalone("tcp://127.0.0.1:0");
 
-    py::gil_scoped_acquire lock;
+    qi::py::GILAcquire lock;
     locals()["sd"] = qi::py::makeSession(session);
   }
 

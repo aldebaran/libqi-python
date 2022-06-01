@@ -15,6 +15,7 @@
 #include <qi/log.hpp>
 
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qipython/pyapplication.hpp>
 #include <qipython/pysession.hpp>
 
@@ -73,6 +74,45 @@ WithArgcArgv<ka::Decay<F>, ExtraArgs...> withArgcArgv(F&& f)
   return { std::forward<F>(f) };
 }
 
+// Wrapper for the `qi::ApplicationSession` class.
+//
+// Stores the `::py::object` that represents the associated `Session` object.
+//
+// This `::py::object` holds an `AnyObject` that wraps the `Session` object.
+// Maintaining the `AnyObject` is necessary so that any properties or signals
+// wrappers that the `::py::object` also holds for this qi Object don't hold
+// an expired pointer to the `AnyObject`.
+class ApplicationSession : private qi::ApplicationSession
+{
+public:
+  using Base = qi::ApplicationSession;
+  using Config = Base::Config;
+
+  template<typename... Args>
+  explicit ApplicationSession(Args&&... args)
+    : Base(std::forward<Args>(args)...)
+    , _session(py::makeSession(Base::session()))
+  {
+  }
+
+  ~ApplicationSession()
+  {
+    GILAcquire lock;
+    _session.release().dec_ref();
+  }
+
+  using Base::stop;
+  using Base::atRun;
+
+  void run() { return Base::run(); }
+  void startSession() { return Base::startSession(); }
+  std::string url() const { return Base::url().str(); }
+  ::py::object session() const { return _session; }
+
+private:
+  ::py::object _session;
+};
+
 } // namespace
 
 void exportApplication(::py::module& m)
@@ -80,17 +120,17 @@ void exportApplication(::py::module& m)
   using namespace ::py;
   using namespace ::py::literals;
 
-  gil_scoped_acquire lock;
+  GILAcquire lock;
 
   class_<Application, std::unique_ptr<Application, DeleteInOtherThread>>(
     m, "Application")
     .def(init(withArgcArgv<>([](int& argc, char**& argv) {
-           gil_scoped_release unlock;
+           GILRelease unlock;
            return new Application(argc, argv);
          })),
          "args"_a)
-    .def_static("run", &Application::run, call_guard<gil_scoped_release>())
-    .def_static("stop", &Application::stop, call_guard<gil_scoped_release>());
+    .def_static("run", &Application::run, call_guard<GILRelease>())
+    .def_static("stop", &Application::stop, call_guard<GILRelease>());
 
   class_<ApplicationSession,
          std::unique_ptr<ApplicationSession, DeleteInOtherThread>>(
@@ -98,7 +138,7 @@ void exportApplication(::py::module& m)
 
     .def(init(withArgcArgv<bool, const std::string&>(
            [](int& argc, char**& argv, bool autoExit, const std::string& url) {
-             gil_scoped_release unlock;
+             GILRelease unlock;
              ApplicationSession::Config config;
              if (!autoExit)
                config.setOption(qi::ApplicationSession::Option_NoAutoExit);
@@ -108,37 +148,31 @@ void exportApplication(::py::module& m)
            })),
          "args"_a, "autoExit"_a, "url"_a)
 
-    .def("run", &ApplicationSession::run, call_guard<gil_scoped_release>(),
+    .def("run", &ApplicationSession::run, call_guard<GILRelease>(),
          doc("Block until the end of the program (call "
              ":py:func:`qi.ApplicationSession.stop` to end the program)."))
 
     .def_static("stop", &ApplicationSession::stop,
-                call_guard<gil_scoped_release>(),
+                call_guard<GILRelease>(),
                 doc(
                   "Ask the application to stop, the run function will return."))
 
     .def("start", &ApplicationSession::startSession,
-         call_guard<gil_scoped_release>(),
+         call_guard<GILRelease>(),
          doc("Start the connection of the session, once this function is "
              "called everything is fully initialized and working."))
 
     .def_static("atRun", &ApplicationSession::atRun,
-                call_guard<gil_scoped_release>(), "func"_a,
+                call_guard<GILRelease>(), "func"_a,
                 doc(
                   "Add a callback that will be executed when run() is called."))
 
-    .def_property_readonly("url",
-                           [](const ApplicationSession& app) {
-                             return app.url().str();
-                           },
-                           call_guard<gil_scoped_release>(),
+    .def_property_readonly("url", &ApplicationSession::url,
+                           call_guard<GILRelease>(),
                            doc("The url given to the Application. It's the url "
                                "used to connect the session."))
 
-    .def_property_readonly("session",
-                           [](const ApplicationSession& app) {
-                             return makeSession(app.session());
-                           },
+    .def_property_readonly("session", &ApplicationSession::session,
                            doc("The session associated to the application."));
 }
 

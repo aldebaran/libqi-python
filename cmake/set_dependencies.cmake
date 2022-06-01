@@ -45,10 +45,10 @@
 include_guard(GLOBAL)
 
 # Version of Boost to use. It will be used as the argument to the `find_package(Boost)` call.
-overridable_variable(BOOST_VERSION 1.64)
+overridable_variable(BOOST_VERSION 1.77)
 
 # Version of pybind11 to use.
-overridable_variable(PYBIND11_VERSION 2.5.0)
+overridable_variable(PYBIND11_VERSION 2.9.0)
 
 # URL of the git repository from which to download pybind11. For more details, see CMake
 # `ExternalProject` module documentation of the `GIT_REPOSITORY` argument.
@@ -58,16 +58,13 @@ overridable_variable(PYBIND11_GIT_REPOSITORY https://github.com/pybind/pybind11)
 # `ExternalProject` module documentation of the `GIT_TAG` argument.
 overridable_variable(PYBIND11_GIT_TAG v${PYBIND11_VERSION})
 
-# Version of googletest to use.
-overridable_variable(GOOGLETEST_VERSION 1.10.0)
-
 # URL of the git repository from which to download googletest. For more details, see CMake
 # `ExternalProject` module documentation of the `GIT_REPOSITORY` argument.
 overridable_variable(GOOGLETEST_GIT_REPOSITORY https://github.com/google/googletest.git)
 
 # Git branch name, tag or commit hash to checkout for googletest. For more details, see CMake
 # `ExternalProject` module documentation of the `GIT_TAG` argument.
-overridable_variable(GOOGLETEST_GIT_TAG release-${GOOGLETEST_VERSION})
+overridable_variable(GOOGLETEST_GIT_TAG main)
 
 set(PYTHON_VERSION_STRING "" CACHE STRING "Version of Python to look for. This \
 variable can be specified by tools run directly from Python to enforce the \

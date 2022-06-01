@@ -5,6 +5,7 @@
 
 #include <qipython/pysignal.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qipython/pyfuture.hpp>
 #include <qipython/pyobject.hpp>
 #include <qipython/pystrand.hpp>
@@ -29,7 +30,7 @@ constexpr const auto delayArgName = "delay";
                    ::py::args args,
                    ::py::kwargs kwargs)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
 
   qi::uint64_t usDelay = 0;
   if (const auto optUsDelay = extractKeywordArg<qi::uint64_t>(kwargs, delayArgName))
@@ -42,7 +43,7 @@ constexpr const auto delayArgName = "delay";
   GILGuardedObject guardKwargs(std::move(kwargs));
 
   auto invokeCallback = [=]() mutable {
-    ::py::gil_scoped_acquire lock;
+    GILAcquire lock;
     auto res = ::py::object((*guardCb)(**guardArgs, ***guardKwargs)).cast<AnyValue>();
     // Release references immediately while we hold the GIL, instead of waiting
     // for the lambda destructor to relock the GIL.
@@ -79,7 +80,7 @@ void exportAsync(::py::module& m)
   using namespace ::py;
   using namespace ::py::literals;
 
-  gil_scoped_acquire lock;
+  GILAcquire lock;
 
   m.def("runAsync", &async,
         "callback"_a,
@@ -102,8 +103,11 @@ void exportAsync(::py::module& m)
         "Set the callback used by the periodic task, this function can only be "
         "called once.\n"
         ":param callable: a python callable, could be a method or a function."))
-    .def("setUsPeriod", &PeriodicTask::setUsPeriod,
-         call_guard<gil_scoped_release>(), "usPeriod"_a,
+    .def("setUsPeriod",
+         [](PeriodicTask& task, qi::int64_t usPeriod) {
+           task.setPeriod(qi::MicroSeconds(usPeriod));
+         },
+         call_guard<GILRelease>(), "usPeriod"_a,
          doc("Set the call interval in microseconds.\n"
              "This call will wait until next callback invocation to apply the "
              "change.\n"
@@ -112,10 +116,10 @@ void exportAsync(::py::module& m)
              ".. code-block:: python\n"
              "\n"
              "   task.stop()\n"
-             "   task.setUsPeriod()\n"
+             "   task.setUsPeriod(100)\n"
              "   task.start()\n"
              ":param usPeriod: the period in microseconds"))
-    .def("start", &PeriodicTask::start, call_guard<gil_scoped_release>(),
+    .def("start", &PeriodicTask::start, call_guard<GILRelease>(),
          "immediate"_a,
          doc("Start the periodic task at specified period. No effect if "
              "already running.\n"
@@ -124,7 +128,7 @@ void exportAsync(::py::module& m)
              ".. warning::\n"
              "   concurrent calls to start() and stop() will result in "
              "undefined behavior."))
-    .def("stop", &PeriodicTask::stop, call_guard<gil_scoped_release>(),
+    .def("stop", &PeriodicTask::stop, call_guard<GILRelease>(),
          doc("Stop the periodic task. When this function returns, the callback "
              "will not be called "
              "anymore. Can be called from within the callback function\n"
@@ -132,12 +136,12 @@ void exportAsync(::py::module& m)
              "   concurrent calls to start() and stop() will result in "
              "undefined behavior."))
     .def("asyncStop", &PeriodicTask::asyncStop,
-         call_guard<gil_scoped_release>(),
+         call_guard<GILRelease>(),
          doc("Request for periodic task to stop asynchronously.\n"
              "Can be called from within the callback function."))
     .def(
       "compensateCallbackTime", &PeriodicTask::compensateCallbackTime,
-      call_guard<gil_scoped_release>(), "compensate"_a,
+      call_guard<GILRelease>(), "compensate"_a,
       doc(
         ":param compensate: boolean. True to activate the compensation.\n"
         "When compensation is activated, call interval will take into account "
@@ -146,7 +150,7 @@ void exportAsync(::py::module& m)
         "   when the callback is longer than the specified period, "
         "compensation will result in the callback being called successively "
         "without pause."))
-    .def("setName", &PeriodicTask::setName, call_guard<gil_scoped_release>(),
+    .def("setName", &PeriodicTask::setName, call_guard<GILRelease>(),
          "name"_a, doc("Set name for debugging and tracking purpose"))
     .def("isRunning", &PeriodicTask::isRunning,
          doc(":returns: true if task is running"))

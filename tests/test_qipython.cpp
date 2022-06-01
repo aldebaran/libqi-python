@@ -6,6 +6,7 @@
 #include <ka/errorhandling.hpp>
 #include <ka/functional.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qipython/pyexport.hpp>
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
@@ -13,6 +14,10 @@
 qiLogCategory("TestQiPython");
 
 namespace py = pybind11;
+
+PYBIND11_EMBEDDED_MODULE(qi, m) {
+  qi::py::exportAll(m);
+}
 
 int main(int argc, char **argv)
 {
@@ -23,13 +28,12 @@ int main(int argc, char **argv)
   boost::optional<qi::Application> app;
   app.emplace(argc, argv);
 
-  py::module m("qi");
-  qi::py::exportAll(m);
-  py::globals()["qi"] = m;
+  py::globals()["qi"] = py::module::import("qi");
+
 
   int ret = EXIT_FAILURE;
   {
-    py::gil_scoped_release unlock;
+    qi::py::GILRelease unlock;
     ret = RUN_ALL_TESTS();
 
     // Destroy the application outside of the GIL to avoid deadlocks, but while

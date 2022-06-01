@@ -20,6 +20,77 @@ int Mouse::squeak()
   return 18;
 }
 
+class Purr
+{
+public:
+  Purr(std::shared_ptr<std::atomic<int>> counter) : counter(counter)
+  {
+    qiLogInfo() << this << " purr constructor ";
+    ++(*counter);
+  }
+  ~Purr()
+  {
+    qiLogInfo() << this << " purr destructor ";
+    --(*counter);
+  }
+  void run()
+  {
+    qiLogInfo() << this << " purring";
+  }
+  qi::Property<int> volume;
+private:
+  std::shared_ptr<std::atomic<int>> counter;
+};
+
+QI_REGISTER_OBJECT(Purr, run, volume);
+
+class Sleep
+{
+public:
+  Sleep(std::shared_ptr<std::atomic<int>> counter) : counter(counter)
+  {
+    qiLogInfo() << this << " sleep constructor ";
+    ++(*counter);
+  }
+  ~Sleep()
+  {
+    qiLogInfo() << this << " sleep destructor ";
+    --(*counter);
+  }
+  void run()
+  {
+    qiLogInfo() << this << " sleeping";
+  }
+private:
+  std::shared_ptr<std::atomic<int>> counter;
+};
+
+QI_REGISTER_OBJECT(Sleep, run);
+
+class Play
+{
+public:
+  Play(std::shared_ptr<std::atomic<int>> counter) : counter(counter)
+  {
+    qiLogInfo() << this << " play constructor ";
+    ++(*counter);
+  }
+  ~Play()
+  {
+    qiLogInfo() << this << " play destructor ";
+    --(*counter);
+  }
+  void run()
+  {
+    qiLogInfo() << this << " playing";
+  }
+  qi::Signal<void> caught;
+private:
+  std::shared_ptr<std::atomic<int>> counter;
+};
+
+QI_REGISTER_OBJECT(Play, run, caught);
+
 class Cat
 {
   public:
@@ -35,24 +106,59 @@ class Cat
       return boost::make_shared<Cat>();
     }
 
+    boost::shared_ptr<Purr> makePurr() const
+    {
+      return boost::make_shared<Purr>(purrCounter);
+    }
+
+    boost::shared_ptr<Sleep> makeSleep() const
+    {
+      return boost::make_shared<Sleep>(sleepCounter);
+    }
+
+    boost::shared_ptr<Play> makePlay() const
+    {
+      return boost::make_shared<Play>(playCounter);
+    }
+
+    int nbPurr()
+    {
+      return purrCounter->load();
+    }
+
+    int nbSleep()
+    {
+      return sleepCounter->load();
+    }
+
+    int nbPlay()
+    {
+      return playCounter->load();
+    }
+
     qi::Property<float> hunger;
     qi::Property<float> boredom;
     qi::Property<float> cuteness;
+
+    std::shared_ptr<std::atomic<int>> purrCounter = std::make_shared<std::atomic<int>>(0);
+    std::shared_ptr<std::atomic<int>> sleepCounter = std::make_shared<std::atomic<int>>(0);
+    std::shared_ptr<std::atomic<int>> playCounter = std::make_shared<std::atomic<int>>(0);
 };
 
-QI_REGISTER_OBJECT(Cat, meow, cloneMe, hunger, boredom, cuteness);
+QI_REGISTER_OBJECT(Cat, meow, cloneMe, hunger, boredom, cuteness,
+                   makePurr, makeSleep, makePlay, nbPurr, nbSleep, nbPlay);
 
 Cat::Cat()
 {
   qiLogInfo() << "Cat constructor";
 }
 
-Cat::Cat(const std::string& s)
+Cat::Cat(const std::string& s) : Cat()
 {
   qiLogInfo() << "Cat string constructor: " << s;
 }
 
-Cat::Cat(const qi::SessionPtr& s)
+Cat::Cat(const qi::SessionPtr& s) : Cat()
 {
   qiLogInfo() << "Cat string constructor with session";
   s->services(); // SEGV?

@@ -6,6 +6,7 @@
 #include <qipython/pyproperty.hpp>
 #include <qipython/pyfuture.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "common.hpp"
@@ -17,13 +18,13 @@ struct PropertyTest : qi::py::test::Execute, testing::Test
 {
   PropertyTest()
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     type = py::globals()["qi"].attr("Property");
   }
 
   ~PropertyTest()
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     type.release().dec_ref();
   }
 
@@ -32,7 +33,7 @@ struct PropertyTest : qi::py::test::Execute, testing::Test
 
 TEST_F(PropertyTest, DefaultConstructedHasDynamicSignature)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto pyProp = type();
   const auto prop = pyProp.cast<qi::py::Property*>();
   const auto sigChildren = prop->signature().children();
@@ -42,7 +43,7 @@ TEST_F(PropertyTest, DefaultConstructedHasDynamicSignature)
 
 TEST_F(PropertyTest, ConstructedWithSignature)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto pyProp =
     type(qi::Signature::fromType(qi::Signature::Type_String).toString());
   const auto prop = pyProp.cast<qi::py::Property*>();
@@ -55,14 +56,14 @@ struct ConstructedPropertyTest : PropertyTest
 {
   ConstructedPropertyTest()
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     pyProp = type("i");
     prop = pyProp.cast<qi::py::Property*>();
   }
 
   ~ConstructedPropertyTest()
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     prop = nullptr;
     pyProp = {};
   }
@@ -78,7 +79,7 @@ TEST_F(PropertyValueTest, CanBeReadAfterSetFromCxx)
   auto setFut = prop->setValue(839).async();
   ASSERT_TRUE(test::finishesWithValue(setFut));
 
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto value = pyProp.attr("value")().cast<int>();
   EXPECT_EQ(839, value);
 }
@@ -89,7 +90,7 @@ TEST_F(PropertyValueTest, ValueCanBeReadAfterSetFromCxxAsync)
   ASSERT_TRUE(test::finishesWithValue(setFut));
 
   const auto valueFut = [&] {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     return qi::py::test::toFutOf<int>(
       pyProp.attr("value")(py::arg("_async") = true).cast<qi::py::Future>());
   }();
@@ -103,7 +104,7 @@ using PropertySetValueTest = ConstructedPropertyTest;
 TEST_F(PropertySetValueTest, ValueCanBeReadFromCxx)
 {
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     pyProp.attr("setValue")(4893);
   }
 
@@ -119,7 +120,7 @@ namespace
 TEST_F(PropertySetValueTest, ValueCanBeReadFromCxxAsync)
 {
   const auto setValueFut = [&] {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     return qi::py::test::toFutOf<void>(
       pyProp.attr("setValue")(3423409, py::arg("_async") = true)
         .cast<qi::py::Future>());
@@ -140,7 +141,7 @@ TEST_F(PropertyAddCallbackTest, CallbackIsCalledWhenValueIsSet)
   StrictMock<MockFunction<void(int)>> mockFn;
 
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto id =
       pyProp.attr("addCallback")(mockFn.AsStdFunction()).cast<qi::SignalLink>();
     EXPECT_NE(qi::SignalBase::invalidSignalLink, id);
@@ -159,7 +160,7 @@ TEST_F(PropertyAddCallbackTest, PythonCallbackIsCalledWhenValueIsSet)
   StrictMock<MockFunction<void(int)>> mockFn;
 
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     auto pyFn = eval("lambda f : lambda i : f(i * 2)");
     const auto id = pyProp.attr("addCallback")(pyFn(mockFn.AsStdFunction()))
                       .cast<qi::SignalLink>();
@@ -179,7 +180,7 @@ TEST_F(PropertyAddCallbackTest, CallbackIsCalledWhenValueIsSetAsync)
   StrictMock<MockFunction<void(int)>> mockFn;
 
   const auto idFut = [&] {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     return qi::py::test::toFutOf<qi::SignalLink>(
       pyProp
         .attr("addCallback")(mockFn.AsStdFunction(), py::arg("_async") = true)
@@ -201,7 +202,7 @@ TEST_F(PropertyAddCallbackTest, CallbackThrowsWhenCalledDoesNotReportError)
   StrictMock<MockFunction<void(int)>> mockFn;
 
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto id =
       pyProp.attr("addCallback")(mockFn.AsStdFunction()).cast<qi::SignalLink>();
     EXPECT_NE(qi::SignalBase::invalidSignalLink, id);
@@ -214,7 +215,7 @@ TEST_F(PropertyAddCallbackTest, CallbackThrowsWhenCalledDoesNotReportError)
   ASSERT_TRUE(test::finishesWithValue(setValueFut));
   ASSERT_TRUE(test::finishesWithValue(cp.fut()));
 
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   EXPECT_EQ(nullptr, PyErr_Occurred());
 }
 
@@ -222,7 +223,7 @@ using PropertyDisconnectTest = ConstructedPropertyTest;
 
 TEST_F(PropertyDisconnectTest, AddedCallbackCanBeDisconnected)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto id = pyProp.attr("addCallback")(py::cpp_function([](int) {}))
                     .cast<qi::SignalLink>();
   EXPECT_NE(qi::SignalBase::invalidSignalLink, id);
@@ -233,20 +234,20 @@ TEST_F(PropertyDisconnectTest, AddedCallbackCanBeDisconnected)
 
 TEST_F(PropertyDisconnectTest, AddedCallbackCanBeDisconnectedAsync)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto id = pyProp.attr("addCallback")(py::cpp_function([](int) {}))
                     .cast<qi::SignalLink>();
   EXPECT_NE(qi::SignalBase::invalidSignalLink, id);
 
   auto success = qi::py::test::toFutOf<bool>(
     pyProp.attr("disconnect")(id, py::arg("_async") = true)
-      .cast<qi::py::Future>());
+      .cast<qi::py::Future>()).value();
   EXPECT_TRUE(success);
 }
 
 TEST_F(PropertyDisconnectTest, DisconnectRandomSignalLinkFails)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto id = qi::SignalLink(42);
 
   auto success = pyProp.attr("disconnect")(id).cast<bool>();

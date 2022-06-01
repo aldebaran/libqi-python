@@ -102,3 +102,21 @@ TEST_F(GuardedTest, GuardsCopyAssignment)
   EXPECT_EQ(42, a->i);
   EXPECT_EQ(42, b->i);
 }
+
+TEST(GILAcquire, IsReentrant)
+{
+  qi::py::GILAcquire acq0; QI_IGNORE_UNUSED(acq0);
+  qi::py::GILRelease rel;  QI_IGNORE_UNUSED(rel);
+  qi::py::GILAcquire acq1; QI_IGNORE_UNUSED(acq1);
+  qi::py::GILAcquire acq2; QI_IGNORE_UNUSED(acq2);
+  SUCCEED();
+}
+
+TEST(GILRelease, IsReentrant)
+{
+  qi::py::GILRelease rel0; QI_IGNORE_UNUSED(rel0);
+  qi::py::GILAcquire acq;  QI_IGNORE_UNUSED(acq);
+  qi::py::GILRelease rel1; QI_IGNORE_UNUSED(rel1);
+  qi::py::GILRelease rel2; QI_IGNORE_UNUSED(rel2);
+  SUCCEED();
+}

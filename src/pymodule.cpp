@@ -24,7 +24,7 @@ namespace
 ::py::object call(::py::object obj, ::py::str name,
                   ::py::args args, ::py::kwargs kwargs)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return obj.attr(name)(*args, **kwargs);
 }
 
@@ -42,7 +42,7 @@ namespace
 
 ::py::list listModules()
 {
-  const auto modules = invokeGuarded<::py::gil_scoped_release>(&qi::listModules);
+  const auto modules = invokeGuarded<GILRelease>(&qi::listModules);
   return castToPyObject(AnyReference::from(modules));
 }
 
@@ -52,7 +52,7 @@ void exportObjectFactory(::py::module& m)
 {
   using namespace ::py;
 
-  gil_scoped_acquire lock;
+  GILAcquire lock;
 
   m.def("module", &getModule,
         doc(":returns: an object that represents the requested module.\n"));

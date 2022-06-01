@@ -4,6 +4,7 @@
 #include <pybind11/embed.h>
 #include <qi/anymodule.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 
 qiLogCategory("TestQiPython.Module");
 
@@ -14,7 +15,7 @@ namespace
 
 void globalExec(const std::string& str)
 {
-  py::gil_scoped_acquire _lock;
+  qi::py::GILAcquire _lock;
   py::exec(str.c_str());
 }
 
@@ -42,7 +43,7 @@ MATCHER(ModuleEq, "") { return sameModule(std::get<0>(arg), std::get<1>(arg)); }
 
 TEST(Module, listModules)
 {
-  py::gil_scoped_acquire _lock;
+  qi::py::GILAcquire _lock;
   auto qi = py::globals()["qi"];
   auto modulesFromPython =
     qi::AnyReference::from(qi.attr("listModules")()).to<std::vector<qi::ModuleInfo>>();

@@ -58,6 +58,21 @@ if(_unresolved_runtime_dependencies)
   message(STATUS "Some dependencies of qi_python and qi are unresolved: ${_unresolved_runtime_dependencies}")
 endif()
 
+if(UNIX OR APPLE)
+  find_program(_patchelf "patchelf")
+  if(_patchelf)
+    if(APPLE)
+      set(_patchelf_runtime_path "@loader_path")
+    elseif(UNIX)
+      set(_patchelf_runtime_path "$ORIGIN")
+    endif()
+  else()
+    message(WARNING "The target system seems to be using ELF binaries, but the `patchelf` \
+tool could not be found. The installed runtime dependencies might not have their runtime path \
+set correctly to run. You might want to install `patchelf` on your system.")
+  endif()
+endif()
+
 foreach(_needed_dep IN LISTS _runtime_dependencies)
   set(_dep "${_needed_dep}")
 
@@ -80,11 +95,19 @@ foreach(_needed_dep IN LISTS _runtime_dependencies)
   endwhile()
 
   file(INSTALL "${_dep}" DESTINATION "${_module_install_dir}")
+  get_filename_component(_dep_filename "${_dep}" NAME)
+  set(_installed_dep "${_module_install_dir}/${_dep_filename}")
+
+  if(_patchelf)
+    message(STATUS "Set runtime path of runtime dependency \"${_installed_dep}\" to \"${_patchelf_runtime_path}\"")
+    file(TO_NATIVE_PATH "${_installed_dep}" _native_installed_dep)
+    execute_process(COMMAND "${_patchelf}"
+      # Sets the RPATH/RUNPATH or may replace the RPATH by a RUNPATH, depending on the platform.
+      --set-rpath "${_patchelf_runtime_path}" "${_native_installed_dep}")
+  endif()
 
   if(NOT "${_dep}" STREQUAL "${_needed_dep}")
-    get_filename_component(_dep_filename "${_dep}" NAME)
     get_filename_component(_needed_dep_filename "${_needed_dep}" NAME)
-    set(_installed_dep "${_module_install_dir}/${_dep_filename}")
     set(_installed_needed_dep "${_module_install_dir}/${_needed_dep_filename}")
     message(STATUS "Renaming ${_installed_dep} into ${_installed_needed_dep}")
     file(RENAME "${_installed_dep}" "${_installed_needed_dep}")

@@ -25,12 +25,41 @@ using SignalPtr = std::shared_ptr<Signal>;
 namespace detail
 {
 
+/// The destructor of `AnyObject` can block waiting for callbacks to end.
+/// This type ensures that it's always called while the GIL is unlocked.
+struct AnyObjectGILSafe
+{
+  AnyObjectGILSafe() = default;
+
+  /// @throws `std::runtime_error` if the weak object is expired.
+  /// @post With s = AnyObjectGILSafe(weak), s->isValid()
+  explicit AnyObjectGILSafe(AnyWeakObject weak);
+
+  // Copy/Move operations are safe to default because they will never cause the
+  // destruction of the `AnyObject` contained in either the source or the
+  // destination (this) object.
+  // The declaration are still kept to enforce the 3/5/0 rule.
+  AnyObjectGILSafe(const AnyObjectGILSafe& o) = default;
+  AnyObjectGILSafe& operator=(const AnyObjectGILSafe& o) = default;
+  AnyObjectGILSafe(AnyObjectGILSafe&& o) = default;
+  AnyObjectGILSafe& operator=(AnyObjectGILSafe&& o) = default;
+
+  ~AnyObjectGILSafe();
+
+  inline AnyObject& operator*() { return _obj; }
+  inline const AnyObject& operator*() const { return _obj; }
+
+  inline AnyObject* operator->() { return &_obj; }
+  inline const AnyObject* operator->() const { return &_obj; }
+
+private:
+  AnyObject _obj;
+};
+
 struct ProxySignal
 {
-  AnyObject object;
+  AnyWeakObject object;
   unsigned int signalId;
-
-  ~ProxySignal();
 };
 
 pybind11::object signalConnect(SignalBase& sig,
@@ -41,12 +70,12 @@ pybind11::object signalDisconnect(SignalBase& sig, SignalLink id, bool async);
 
 pybind11::object signalDisconnectAll(SignalBase& sig, bool async);
 
-pybind11::object proxySignalConnect(const AnyObject& obj,
+pybind11::object proxySignalConnect(const AnyObjectGILSafe& obj,
                                     unsigned int signalId,
                                     const pybind11::function& callback,
                                     bool async);
 
-pybind11::object proxySignalDisconnect(const AnyObject& obj,
+pybind11::object proxySignalDisconnect(const AnyObjectGILSafe& obj,
                                        SignalLink id,
                                        bool async);
 } // namespace detail

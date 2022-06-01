@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
+#include <boost/optional/optional_io.hpp>
 #include "common.hpp"
 
 namespace py = pybind11;
@@ -39,7 +40,7 @@ struct ReadObjectUidTest : qi::py::test::Execute, testing::Test {};
 
 TEST_F(ReadObjectUidTest, ReturnsEmptyIfAbsent)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto a = eval("object()");
   auto objectUid = qi::py::detail::readObjectUid(a);
   EXPECT_FALSE(objectUid);
@@ -47,7 +48,7 @@ TEST_F(ReadObjectUidTest, ReturnsEmptyIfAbsent)
 
 TEST_F(ReadObjectUidTest, ReturnsValueIfPresent)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   exec(declareTypeAWithUid);
   auto a = eval("A()");
   auto objectUid = qi::py::detail::readObjectUid(a);
@@ -70,7 +71,7 @@ constexpr const std::array<std::uint8_t, 20> WriteObjectUidTest::data;
 
 TEST_F(WriteObjectUidTest, CanBeReadAfterWritten)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   exec(R"(
 class A(object):
     pass
@@ -85,7 +86,7 @@ class A(object):
 
 TEST_F(WriteObjectUidTest, CanBeReadAfterOverwritten)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   exec(declareTypeAWithUid);
   auto a = eval("A()");
 
@@ -144,7 +145,7 @@ class Cookies(object):
   template<typename... Args>
   qi::AnyObject makeObject(Args&&... args)
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto type = locals()["Cookies"];
     return qi::py::toObject(type(std::forward<Args>(args)...));
   }
@@ -216,14 +217,14 @@ struct ObjectTest : testing::Test
   {
     object = boost::make_shared<Muffins>();
 
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     pyObject = qi::py::toPyObject(object);
     ASSERT_TRUE(pyObject);
   }
 
   void TearDown() override
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     pyObject.release().dec_ref();
   }
 
@@ -248,7 +249,7 @@ QI_REGISTER_OBJECT(ObjectTest::Muffins, count, bakedCount, baked)
 
 TEST_F(ObjectTest, IsValid)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   {
     EXPECT_TRUE(py::bool_(pyObject));
     EXPECT_TRUE(py::bool_(pyObject.attr("isValid")()));
@@ -265,18 +266,18 @@ TEST_F(ObjectTest, IsValid)
 
 TEST_F(ObjectTest, Call)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto res = pyObject.attr("call")("count", 832).cast<std::string>();
   EXPECT_EQ("You have 832 muffins.", res);
 }
 
 TEST_F(ObjectTest, Async)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   {
     const auto res = qi::py::test::toFutOf<std::string>(
       py::cast<qi::py::Future>(pyObject.attr("async")("count", 2356)));
-    py::gil_scoped_release unlock;
+    GILRelease unlock;
     ASSERT_TRUE(test::finishesWithValue(res));
     EXPECT_EQ("You have 2356 muffins.", res.value());
   }
@@ -284,7 +285,7 @@ TEST_F(ObjectTest, Async)
   {
     const auto res = qi::py::test::toFutOf<std::string>(py::cast<qi::py::Future>(
       pyObject.attr("call")("count", 32897, py::arg("_async") = true)));
-    py::gil_scoped_release unlock;
+    GILRelease unlock;
     ASSERT_TRUE(test::finishesWithValue(res));
     EXPECT_EQ("You have 32897 muffins.", res.value());
   }
@@ -294,7 +295,7 @@ using ToPyObjectTest = ObjectTest;
 
 TEST_F(ToPyObjectTest, MethodCanBeCalled)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   {
     const auto res = pyObject.attr("count")(8).cast<std::string>();
     EXPECT_EQ("You have 8 muffins.", res);
@@ -305,7 +306,7 @@ TEST_F(ToPyObjectTest, MethodCanBeCalled)
     const auto res = qi::py::test::toFutOf<std::string>(py::cast<qi::py::Future>(
       pyObject.attr("count")(5, py::arg("_async") = true)));
 
-    py::gil_scoped_release unlock;
+    GILRelease unlock;
     ASSERT_TRUE(test::finishesWithValue(res));
     EXPECT_EQ("You have 5 muffins.", res.value());
   }
@@ -313,21 +314,21 @@ TEST_F(ToPyObjectTest, MethodCanBeCalled)
 
 TEST_F(ToPyObjectTest, PropertyIsExposed)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const py::object prop = pyObject.attr("bakedCount");
   EXPECT_TRUE(qi::py::isProperty(prop));
 }
 
 TEST_F(ToPyObjectTest, SignalIsExposed)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const py::object sig = pyObject.attr("baked");
   EXPECT_TRUE(qi::py::isSignal(sig));
 }
 
 TEST_F(ToPyObjectTest, FutureAsObjectIsReturnedAsPyFuture)
 {
-  py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const auto res = pyObject.attr("count")(8).cast<std::string>();
   EXPECT_EQ("You have 8 muffins.", res);
 }

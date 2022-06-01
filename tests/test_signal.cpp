@@ -5,6 +5,7 @@
 
 #include <qipython/pysignal.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qipython/pyobject.hpp>
 #include <qi/session.hpp>
 #include <gtest/gtest.h>
@@ -18,7 +19,7 @@ struct DefaultConstructedSignalTest : qi::py::test::Execute, testing::Test
 {
   DefaultConstructedSignalTest()
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     type = py::globals()["qi"].attr("Signal");
     pySig = type();
     sig = pySig.cast<qi::py::Signal*>();
@@ -26,7 +27,7 @@ struct DefaultConstructedSignalTest : qi::py::test::Execute, testing::Test
 
   ~DefaultConstructedSignalTest()
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     sig = nullptr;
     pySig = {};
     type = {};
@@ -43,7 +44,7 @@ TEST_F(DefaultConstructedSignalTest, AcceptsCallbackWithoutArgument)
   StrictMock<MockFunction<void()>> mockFn;
 
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto id = pySig.attr("connect")(mockFn.AsStdFunction())
                       .cast<qi::SignalLink>();
     EXPECT_NE(qi::SignalBase::invalidSignalLink, id);
@@ -61,7 +62,7 @@ TEST_F(DefaultConstructedSignalTest, AcceptsCallbackWithAnyArgument)
   StrictMock<MockFunction<void(int, std::string)>> mockFn;
 
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     const auto id = pySig.attr("connect")(mockFn.AsStdFunction())
                       .cast<qi::SignalLink>();
     EXPECT_NE(qi::SignalBase::invalidSignalLink, id);
@@ -90,7 +91,7 @@ struct ConstructedThroughServiceSignalTest : qi::py::test::Execute, testing::Tes
       test::finishesWithValue(clientSession->connect(servSession->url())));
 
     {
-      py::gil_scoped_acquire lock;
+      GILAcquire lock;
       exec(R"py(
 class Cookies(object):
   def __init__(self):
@@ -113,7 +114,7 @@ class Cookies(object):
 
   void TearDown() override
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     pySig = {};
   }
 
@@ -140,7 +141,7 @@ TEST_F(ConstructedThroughServiceSignalTest,
                                  }))));
 
   {
-    py::gil_scoped_acquire lock;
+    GILAcquire lock;
     pySig();
   }
 

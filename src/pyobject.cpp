@@ -41,7 +41,7 @@ constexpr static const auto overloadArgName = "_overload";
 ::py::object call(const Object& obj, std::string funcName,
                   ::py::args args, ::py::kwargs kwargs)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
 
   if (auto optOverload = extractKeywordArg<std::string>(kwargs, overloadArgName))
     funcName = *optOverload;
@@ -54,7 +54,7 @@ constexpr static const auto overloadArgName = "_overload";
 
   Promise prom;
   {
-    ::py::gil_scoped_release _unlock;
+    GILRelease _unlock;
     auto metaCallFut = obj.metaCall(funcName, argsValue.asTupleValuePtr(),
                                     async ? MetaCallType_Queued : MetaCallType_Direct);
 
@@ -77,7 +77,7 @@ std::string docString(const MetaMethod& method)
 
 void populateMethods(::py::object pyobj, const Object& obj)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
 
   const auto& metaObj = obj.metaObject();
   const auto& methodMap = metaObj.methodMap();
@@ -158,7 +158,7 @@ AnyReference callPythonMethod(const AnyReferenceVector& cargs,
   QI_ASSERT_TRUE(it != cargsEnd);
   ++it;
 
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   ::py::tuple args(std::distance(it, cargsEnd));
 
   ::py::size_t i = 0;
@@ -185,7 +185,7 @@ AnyReference callPythonMethod(const AnyReferenceVector& cargs,
 // the number of positional parameters the function accepts.
 std::string methodDefaultParametersSignature(const ::py::function& method)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
 
   // Returns a Signature object (see
   // https://docs.python.org/3/library/inspect.html#inspect.Signature).
@@ -226,7 +226,7 @@ boost::optional<unsigned int> registerMethod(DynamicObjectBuilder& gob,
                                              const ::py::function& method,
                                              std::string parametersSignature)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
 
   if (boost::starts_with(name, "__"))
   {
@@ -269,16 +269,17 @@ namespace detail
 
 boost::optional<ObjectUid> readObjectUid(const ::py::object& obj)
 {
-  ::py::gil_scoped_acquire lock;
-  const ::py::bytes qiObjectUid = ::py::getattr(obj, qiObjectUidAttributeName, ::py::none());
-  if (!qiObjectUid.is_none())
-    return deserializeObjectUid(static_cast<std::string>(qiObjectUid));
-  return {};
+  GILAcquire lock;
+  const auto qiObjectUidObj = ::py::getattr(obj, qiObjectUidAttributeName, ::py::none());
+  if (qiObjectUidObj.is_none())
+    return {};
+  const auto qiObjectUid = qiObjectUidObj.cast<std::string>();
+  return deserializeObjectUid(qiObjectUid);
 }
 
 void writeObjectUid(const pybind11::object& obj, const ObjectUid& uid)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   const ::py::bytes uidData = serializeObjectUid<std::string>(uid);
   ::py::setattr(obj, qiObjectUidAttributeName, uidData);
 }
@@ -309,7 +310,7 @@ void writeObjectUid(const pybind11::object& obj, const ObjectUid& uid)
 
 Object toObject(const ::py::object& obj)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
 
   // Check the few known Object types that a Python object can be.
   if (::py::isinstance<Object>(obj))
@@ -394,7 +395,7 @@ Object toObject(const ::py::object& obj)
   // When the GenericObject is destroyed, the reference is released.
   GILGuardedObject guardedObj(obj);
   Object anyobj = gob.object([guardedObj](GenericObject*) mutable {
-      ::py::gil_scoped_acquire lock;
+      GILAcquire lock;
       *guardedObj = {};
     });
 
@@ -417,17 +418,17 @@ void exportObject(::py::module& m)
   using namespace ::py;
   using namespace ::py::literals;
 
-  gil_scoped_acquire lock;
+  GILAcquire lock;
 
   class_<Object>(m, "Object", dynamic_attr())
-    .def(self == self, call_guard<gil_scoped_release>())
-    .def(self != self, call_guard<gil_scoped_release>())
-    .def(self < self, call_guard<gil_scoped_release>())
-    .def(self <= self, call_guard<gil_scoped_release>())
-    .def(self > self, call_guard<gil_scoped_release>())
-    .def(self >= self, call_guard<gil_scoped_release>())
-    .def("__bool__", &Object::isValid, call_guard<gil_scoped_release>())
-    .def("isValid", &Object::isValid, call_guard<gil_scoped_release>())
+    .def(self == self, call_guard<GILRelease>())
+    .def(self != self, call_guard<GILRelease>())
+    .def(self < self, call_guard<GILRelease>())
+    .def(self <= self, call_guard<GILRelease>())
+    .def(self > self, call_guard<GILRelease>())
+    .def(self >= self, call_guard<GILRelease>())
+    .def("__bool__", &Object::isValid, call_guard<GILRelease>())
+    .def("isValid", &Object::isValid, call_guard<GILRelease>())
     .def("call",
          [](Object& obj, const std::string& funcName, ::py::args args,
             ::py::kwargs kwargs) {
@@ -443,7 +444,7 @@ void exportObject(::py::module& m)
          "funcName"_a)
     .def("metaObject",
          [](const Object& obj) { return AnyReference::from(obj.metaObject()); },
-         call_guard<gil_scoped_release>());
+         call_guard<GILRelease>());
   // TODO: .def("post")
   // TODO: .def("setProperty")
   // TODO: .def("property")

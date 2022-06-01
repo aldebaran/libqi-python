@@ -19,6 +19,23 @@
 #include <future>
 #include <thread>
 
+
+// MAJOR, MINOR and PATCH must be in [0, 255].
+#define QI_PYBIND11_VERSION(MAJOR, MINOR, PATCH) \
+  (((MAJOR) << 16) | \
+   ((MINOR) <<  8) | \
+   ((PATCH) <<  0))
+
+#ifdef PYBIND11_VERSION_HEX
+// Remove the lowest 8 bits which represent the serial and level version components.
+# define QI_CURRENT_PYBIND11_VERSION (PYBIND11_VERSION_HEX >> 8)
+#else
+# define QI_CURRENT_PYBIND11_VERSION \
+  QI_PYBIND11_VERSION(PYBIND11_VERSION_MAJOR, \
+                      PYBIND11_VERSION_MINOR, \
+                      PYBIND11_VERSION_PATCH)
+#endif
+
 namespace qi
 {
 namespace py
@@ -93,32 +110,20 @@ boost::optional<T> extractKeywordArg(pybind11::dict kwargs,
   return pyArg.cast<T>();
 }
 
-/// A deleter that deletes the pointer outside of the GIL.
-///
-/// Useful for types that might deadlock on destruction if they keep the GIL
-/// locked.
-struct DeleteOutsideGIL
+/// Returns whether or not the interpreter is finalizing. If the information
+/// could not be fetched, the function returns an empty optional. Otherwise, it
+/// returns an optional set with a boolean stating if the interpreter is indeed
+/// finalizing or not.
+inline boost::optional<bool> interpreterIsFinalizing()
 {
-  template<typename T>
-  void operator()(T* ptr) const
-  {
-    pybind11::gil_scoped_release unlock;
-    delete ptr;
-  }
-};
-
-/// Delay the destruction of an object to a thread.
-struct DeleteInOtherThread
-{
-  template<typename T>
-  void operator()(T* ptr) const
-  {
-    pybind11::gil_scoped_release unlock;
-    auto fut = std::async(std::launch::async, [](std::unique_ptr<T>) {},
-                          std::unique_ptr<T>(ptr));
-    QI_IGNORE_UNUSED(fut);
-  }
-};
+// `_Py_IsFinalizing` is only available on CPython 3.7+
+#if PY_VERSION_HEX >= 0x03070000
+  return boost::make_optional(_Py_IsFinalizing() != 0);
+#else
+  // There is no way of knowing on older versions.
+  return {};
+#endif
+}
 
 } // namespace py
 } // namespace qi

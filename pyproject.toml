@@ -1,3 +1,17 @@
+[project]
+dependencies = [
+  "packaging"
+]
+
+# PEP 518
 [build-system]
-requires = ["setuptools>=47.1", "wheel>=0.34", "scikit-build>=0.10.1",
-            "cmake>=3.17", "ninja>=1.5"]
+# Minimum requirements for the build system to execute.
+requires = [
+  "setuptools >= 47, < 51", # setuptools 51 dropped support for Python 3.5.
+  "wheel >= 0.34", # tested with 0.34.
+  "scikit-build >= 0.10", # tested with 0.10.
+  "cmake ~= 3.16", # CMake >= 3.16, CMake < 4.
+  "ninja ~= 1", # ninja >= 1, ninja < 2.
+  "toml ~= 10",
+  "packaging ~= 21",
+]

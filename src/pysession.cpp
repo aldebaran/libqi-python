@@ -5,6 +5,7 @@
 
 #include <qipython/pysession.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qipython/pytypes.hpp>
 #include <qipython/pyobject.hpp>
 #include <boost/smart_ptr/shared_ptr.hpp>
@@ -35,7 +36,7 @@ namespace
     {
       constexpr const auto category = "qi.python.session.deleter";
       constexpr const auto msg = "Waiting for the shared pointer destruction...";
-      ::py::gil_scoped_release x;
+      GILRelease x;
       auto fut = std::async(std::launch::async, [=](std::unique_ptr<Session>) {
         while (!wptr.expired())
         {
@@ -52,7 +53,7 @@ namespace
   auto ptr = SessionPtr(new qi::Session{}, Deleter{});
   boost::get_deleter<Deleter>(ptr)->wptr = ka::weak_ptr(ptr);
 
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return py::makeSession(ptr);
 }
 
@@ -60,7 +61,7 @@ namespace
 
 ::py::object makeSession(SessionPtr sess)
 {
-  ::py::gil_scoped_acquire lock;
+  GILAcquire lock;
   return toPyObject(sess);
 }
 
@@ -68,7 +69,7 @@ void exportSession(::py::module& m)
 {
   using namespace ::py;
 
-  gil_scoped_acquire lock;
+  GILAcquire lock;
 
   m.def("Session", []{ return makeSession(); });
 }

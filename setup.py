@@ -3,12 +3,20 @@
 
 import os
 import platform
+import pathlib
 from setuptools import find_packages
 from skbuild import setup
+from packaging import version
+import toml
 
-py_version = platform.python_version_tuple()
-if py_version < ('3', '5'):
-  raise RuntimeError('Python 3.5+ is required.')
+py_version = version.parse(platform.python_version())
+min_version = version.parse('3.5')
+if py_version < min_version:
+    raise RuntimeError('Python 3.5+ is required.')
+
+# Parse `pyproject.toml` runtime dependencies.
+pyproject_data = toml.loads(pathlib.Path('pyproject.toml').read_text())
+pyproject_deps = pyproject_data['project']['dependencies']
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -34,6 +42,7 @@ setup(
     author_email='release@softbankrobotics.com',
     license='BSD 3-Clause License',
     python_requires='~=3.5',
+    install_requires=pyproject_deps,
     packages=find_packages(exclude=[
         '*.test', '*.test.*', 'test.*', 'test'
     ]),

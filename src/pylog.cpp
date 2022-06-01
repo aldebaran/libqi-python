@@ -5,6 +5,7 @@
 
 #include <qipython/pylog.hpp>
 #include <qipython/common.hpp>
+#include <qipython/pyguard.hpp>
 #include <qi/application.hpp>
 #include <qi/log.hpp>
 #include <qi/os.hpp>
@@ -22,7 +23,7 @@ void exportLog(::py::module& m)
   using namespace ::py;
   using namespace ::py::literals;
 
-  gil_scoped_acquire lock;
+  GILAcquire lock;
 
   enum_<LogLevel>(m, "LogLevel")
     .value("Silent",  LogLevel_Silent)
@@ -39,12 +40,12 @@ void exportLog(::py::module& m)
           log::log(level, name.c_str(), message.c_str(), file.c_str(),
                    func.c_str(), line);
         },
-        call_guard<gil_scoped_release>(), "level"_a, "name"_a, "message"_a,
+        call_guard<GILRelease>(), "level"_a, "name"_a, "message"_a,
         "file"_a, "func"_a, "line"_a);
 
   m.def("setFilters",
         [](const std::string& filters) { log::addFilters(filters); },
-        call_guard<gil_scoped_release>(), "filters"_a,
+        call_guard<GILRelease>(), "filters"_a,
         doc("Set log filtering options.\n"
             "Each rule can be:\n\n"
             "  +CAT: enable category CAT\n\n"
@@ -60,7 +61,7 @@ void exportLog(::py::module& m)
             ":param filters: List of rules separated by colon."));
 
   m.def("setContext", [](int context) { qi::log::setContext(context); },
-        call_guard<gil_scoped_release>(), "context"_a,
+        call_guard<GILRelease>(), "context"_a,
         doc("  1  : Verbosity                            \n"
             "  2  : ShortVerbosity                       \n"
             "  4  : Date                                 \n"
@@ -77,7 +78,7 @@ void exportLog(::py::module& m)
             ":param context: A bitfield (sum of described values)."));
 
   m.def("setLevel", [](LogLevel level) { log::setLogLevel(level); },
-        call_guard<gil_scoped_release>(), "level"_a,
+        call_guard<GILRelease>(), "level"_a,
         doc(
           "Sets the threshold for the logger to level. "
           "Logging messages which are less severe than level will be ignored. "
