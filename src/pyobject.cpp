@@ -121,7 +121,7 @@ void populateSignals(::py::object pyobj, const Object& obj)
       continue;
 
     ::py::setattr(pyobj, signalName.c_str(),
-                  castToPyObject(new detail::ProxySignal{ obj, signal.uid() }));
+                  castToPyObject(detail::ProxySignal{ obj, signal.uid() }));
   }
 }
 
@@ -138,7 +138,7 @@ void populateProperties(::py::object pyobj, const Object& obj)
       continue;
 
     ::py::setattr(pyobj, propName.c_str(),
-                  castToPyObject(new detail::ProxyProperty{ obj, prop.uid() }));
+                  castToPyObject(detail::ProxyProperty{ obj, prop.uid() }));
   }
 }
 

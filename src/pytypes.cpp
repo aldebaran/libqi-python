@@ -535,8 +535,10 @@ public:
     res.reserve(_size);
     for (const ::py::handle itemHandle : obj)
     {
-      auto item = ::py::reinterpret_borrow<::py::object>(itemHandle);
-      res.push_back(AnyValue::from(item).release().rawValue());
+      const auto item = ::py::reinterpret_borrow<::py::object>(itemHandle);
+      const auto itemRef = AnyValue::from(item).release();
+      storeDisownedReference(storage, itemRef);
+      res.push_back(itemRef.rawValue());
     }
     return res;
   }
@@ -551,8 +553,10 @@ public:
     // `pybind11::iterator` is not. We use advance instead.
     auto it = obj.begin();
     std::advance(it, index);
-    const auto item = *it;
-    return AnyValue::from(item).release().rawValue();
+    const auto item = ::py::reinterpret_borrow<::py::object>(*it);
+    const auto itemRef = AnyValue::from(item).release();
+    storeDisownedReference(storage, itemRef);
+    return itemRef.rawValue();
   }
 
   void set(void** /*storage*/, const std::vector<void*>&) override
