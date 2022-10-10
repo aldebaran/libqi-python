@@ -153,9 +153,9 @@ if(CMAKE_TOOLCHAIN_FILE)
 endif()
 
 
-# C++11
-add_library(cxx11 INTERFACE)
-target_compile_features(cxx11 INTERFACE cxx_std_11)
+# C++14
+add_library(cxx14 INTERFACE)
+target_compile_features(cxx14 INTERFACE cxx_std_14)
 
 
 # Threads
@@ -248,7 +248,7 @@ if(NOT pybind11_POPULATED)
   # subproject.
   add_library(pybind11 INTERFACE)
   target_include_directories(pybind11 INTERFACE ${pybind11_SOURCE_DIR}/include)
-  target_link_libraries(pybind11 INTERFACE cxx11 python_headers)
+  target_link_libraries(pybind11 INTERFACE cxx14 python_headers)
 endif()
 
 
