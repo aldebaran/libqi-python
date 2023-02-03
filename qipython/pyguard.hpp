@@ -143,58 +143,56 @@ void pybind11GuardDisarm(G& guard)
 /// RAII utility type that guarantees that the GIL is locked for the scope of
 /// the lifetime of the object.
 ///
+/// Objects of this type (or objects composed of them) must not be kept alive
+/// after the hand is given back to the interpreter.
+///
 /// This type is re-entrant.
 ///
-/// postcondition: `GILAcquire acq;` establishes `currentThreadHoldsGil()`
+/// postcondition: `GILAcquire acq;` establishes
+/// `(interpreterIsFinalizing() && *interpreterIsFinalizing()) || currentThreadHoldsGil()`
 struct GILAcquire
 {
   inline GILAcquire()
   {
+    const auto optIsFinalizing = interpreterIsFinalizing();
+    const auto definitelyFinalizing = optIsFinalizing && *optIsFinalizing;
     // `gil_scoped_acquire` is re-entrant by itself, so we don't need to check
     // whether or not the GIL is already held by the current thread.
-    QI_ASSERT(currentThreadHoldsGil());
+    if (!definitelyFinalizing)
+      _acq.emplace();
+    QI_ASSERT(definitelyFinalizing || currentThreadHoldsGil());
   }
 
   GILAcquire(const GILAcquire&) = delete;
   GILAcquire& operator=(const GILAcquire&) = delete;
 
-  inline ~GILAcquire()
-  {
-    const auto optIsFinalizing = interpreterIsFinalizing();
-    const auto definitelyFinalizing = optIsFinalizing && *optIsFinalizing;
-    if (definitelyFinalizing)
-      detail::pybind11GuardDisarm(_acq);
-  }
-
 private:
-  pybind11::gil_scoped_acquire _acq;
+  boost::optional<pybind11::gil_scoped_acquire> _acq;
 };
 
 /// RAII utility type that guarantees that the GIL is unlocked for the scope of
 /// the lifetime of the object.
 ///
+/// Objects of this type (or objects composed of them) must not be kept alive
+/// after the hand is given back to the interpreter.
+///
 /// This type is re-entrant.
 ///
-/// postcondition: `GILRelease rel;` establishes `!currentThreadHoldsGil()`
+/// postcondition: `GILRelease rel;` establishes
+/// `(interpreterIsFinalizing() && *interpreterIsFinalizing()) || !currentThreadHoldsGil()`
 struct GILRelease
 {
   inline GILRelease()
   {
-    if (currentThreadHoldsGil())
+    const auto optIsFinalizing = interpreterIsFinalizing();
+    const auto definitelyFinalizing = optIsFinalizing && *optIsFinalizing;
+    if (!definitelyFinalizing && currentThreadHoldsGil())
       _release.emplace();
-    QI_ASSERT(!currentThreadHoldsGil());
+    QI_ASSERT(definitelyFinalizing || !currentThreadHoldsGil());
   }
 
   GILRelease(const GILRelease&) = delete;
   GILRelease& operator=(const GILRelease&) = delete;
-
-  inline ~GILRelease()
-  {
-    const auto optIsFinalizing = interpreterIsFinalizing();
-    const auto definitelyFinalizing = optIsFinalizing && *optIsFinalizing;
-    if (_release && definitelyFinalizing)
-      detail::pybind11GuardDisarm(*_release);
-  }
 
 private:
   boost::optional<pybind11::gil_scoped_release> _release;

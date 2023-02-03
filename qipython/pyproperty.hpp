@@ -24,8 +24,10 @@ namespace detail
 {
   struct ProxyProperty
   {
-    AnyWeakObject object;
+    AnyObject object;
     unsigned int propertyId;
+
+    ~ProxyProperty();
   };
 }
 

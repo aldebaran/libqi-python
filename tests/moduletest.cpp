@@ -121,6 +121,11 @@ class Cat
       return boost::make_shared<Play>(playCounter);
     }
 
+    void order(qi::AnyObject /*action*/) const
+    {
+      // Cats do not follow orders, they do nothing.
+    }
+
     int nbPurr()
     {
       return purrCounter->load();
@@ -146,7 +151,8 @@ class Cat
 };
 
 QI_REGISTER_OBJECT(Cat, meow, cloneMe, hunger, boredom, cuteness,
-                   makePurr, makeSleep, makePlay, nbPurr, nbSleep, nbPlay);
+                   makePurr, makeSleep, makePlay, order,
+                   nbPurr, nbSleep, nbPlay);
 
 Cat::Cat()
 {

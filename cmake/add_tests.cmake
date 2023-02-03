@@ -49,18 +49,32 @@ target_link_libraries(test_qipython
           qi.interface
           cxx11
           gmock)
-# Unfortunately, in some of our toolchains, gtest/gmock headers are found in the qi-framework
-# package, which comes first in the include paths order given to the compiler. This causes the
-# compiler to use those headers instead of the ones we got from a `FetchContent` of the googletest
-# repository.
-target_include_directories(test_qipython
-  BEFORE # Force this path to come first in the list of include paths.
-  PRIVATE $<TARGET_PROPERTY:gmock,INTERFACE_INCLUDE_DIRECTORIES>)
-enable_warnings(test_qipython)
-set_build_rpath_to_qipython_dependencies(test_qipython)
+
+add_executable(test_qipython_local_interpreter)
+target_sources(test_qipython_local_interpreter
+  PRIVATE tests/test_qipython_local_interpreter.cpp)
+target_link_libraries(test_qipython_local_interpreter
+  PRIVATE Python::Python
+          pybind11
+          qi_python_objects
+          qi.interface
+          cxx11
+          gmock)
 
 set(_sdk_prefix "${CMAKE_BINARY_DIR}/sdk")
-gtest_discover_tests(test_qipython EXTRA_ARGS --qi-sdk-prefix ${_sdk_prefix})
+foreach(test_target IN ITEMS test_qipython
+                             test_qipython_local_interpreter)
+  # Unfortunately, in some of our toolchains, gtest/gmock headers are found in the qi-framework
+  # package, which comes first in the include paths order given to the compiler. This causes the
+  # compiler to use those headers instead of the ones we got from a `FetchContent` of the googletest
+  # repository.
+  target_include_directories(${test_target}
+    BEFORE # Force this path to come first in the list of include paths.
+    PRIVATE $<TARGET_PROPERTY:gmock,INTERFACE_INCLUDE_DIRECTORIES>)
+  enable_warnings(${test_target})
+  set_build_rpath_to_qipython_dependencies(${test_target})
+  gtest_discover_tests(${test_target} EXTRA_ARGS --qi-sdk-prefix ${_sdk_prefix})
+endforeach()
 
 if(NOT Python_Interpreter_FOUND)
   message(WARNING "tests: a compatible Python Interpreter was NOT found, Python tests are DISABLED.")

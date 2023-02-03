@@ -42,7 +42,6 @@ def test_module_service():
     cat = session.service("Cat")
     assert cat.meow(3) == 'meow'
 
-
 def test_module_service_object_lifetime():
     session = qi.Session()
     session.listenStandalone("tcp://localhost:0")
@@ -72,3 +71,25 @@ def test_module_service_object_lifetime():
     assert cat.nbPlay() == 1
     del play
     assert cat.nbPlay() == 0
+
+def test_object_bound_functions_arguments_conversion_does_not_leak():
+    session = qi.Session()
+    session.listenStandalone("tcp://localhost:0")
+    session.loadServiceRename("moduletest.Cat", "", "truc")
+    cat = session.service("Cat")
+
+    play = cat.makePlay()
+    assert cat.nbPlay() == 1
+    cat.order(play)
+    assert cat.nbPlay() == 1
+    del play
+    assert cat.nbPlay() == 0
+
+def test_temporary_object_bound_properties_are_usable():
+    session = qi.Session()
+    session.listenStandalone("tcp://localhost:0")
+    session.loadServiceRename("moduletest.Cat", "", "truc")
+    # The `volume` member is a bound property of the `Purr` object.
+    # It should keep the object alive so that setting the property, which
+    # requires accessing the object, does not fail.
+    session.service("Cat").makePurr().volume.setValue(42)

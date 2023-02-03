@@ -65,7 +65,7 @@ template<typename F>
                                 bool async)
 {
   GILAcquire lock;
-  return detail::proxySignalConnect(detail::AnyObjectGILSafe(sig.object), sig.signalId, callback, async);
+  return detail::proxySignalConnect(sig.object, sig.signalId, callback, async);
 }
 
 } // namespace
@@ -73,20 +73,13 @@ template<typename F>
 namespace detail
 {
 
-static constexpr const auto objectExpiredMsg = "object has expired";
-
-AnyObjectGILSafe::AnyObjectGILSafe(AnyWeakObject weakObj)
+detail::ProxySignal::~ProxySignal()
 {
-  _obj = weakObj.lock();
-  if (!_obj.isValid())
-    throw std::runtime_error(objectExpiredMsg);
-}
-
-AnyObjectGILSafe::~AnyObjectGILSafe()
-{
+  // The destructor can lock waiting for callbacks to end.
   GILRelease unlock;
-  _obj = {};
+  object.reset();
 }
+
 
 ::py::object signalConnect(SignalBase& sig,
                            const ::py::function& callback,
@@ -126,7 +119,7 @@ AnyObjectGILSafe::~AnyObjectGILSafe()
   return resultObject(fut, async);
 }
 
-::py::object proxySignalConnect(const AnyObjectGILSafe& obj,
+::py::object proxySignalConnect(const AnyObject& obj,
                                 unsigned int signalId,
                                 const ::py::function& callback,
                                 bool async)
@@ -135,18 +128,18 @@ AnyObjectGILSafe::~AnyObjectGILSafe()
   return connect(
     [&](const SignalSubscriber& sub) {
       GILRelease unlock;
-      return obj->connect(signalId, sub).async();
+      return obj.connect(signalId, sub).async();
     },
     callback, async);
 }
 
-::py::object proxySignalDisconnect(const AnyObjectGILSafe& obj,
+::py::object proxySignalDisconnect(const AnyObject& obj,
                                    SignalLink id,
                                    bool async)
 {
   const auto fut = [&] {
     GILRelease unlock;
-    return toFuture(obj->disconnect(id));
+    return toFuture(obj.disconnect(id));
   }();
   GILAcquire lock;
   return resultObject(fut, async);
@@ -219,8 +212,7 @@ void exportSignal(::py::module& m)
          arg(asyncArgName) = false)
     .def("disconnect",
          [](detail::ProxySignal& sig, SignalLink id, bool async) {
-           auto object = detail::AnyObjectGILSafe(sig.object);
-           return detail::proxySignalDisconnect(object, id, async);
+           return detail::proxySignalDisconnect(sig.object, id, async);
          },
          "id"_a, arg(asyncArgName) = false)
     .def("__call__",
@@ -228,8 +220,7 @@ void exportSignal(::py::module& m)
            const auto args =
              AnyReference::from(pyArgs).content().asTupleValuePtr();
            GILRelease unlock;
-           auto object = detail::AnyObjectGILSafe(sig.object);
-           object->metaPost(sig.signalId, args);
+           sig.object.metaPost(sig.signalId, args);
   });
 }
 
