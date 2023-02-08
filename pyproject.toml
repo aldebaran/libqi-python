@@ -1,4 +1,6 @@
 [project]
+name = "qi"
+version = "3.1.0"
 dependencies = [
   "packaging"
 ]
