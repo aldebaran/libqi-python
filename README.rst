@@ -5,6 +5,17 @@ LibQiPython - LibQi Python bindings
 This repository contains the official Python bindings of the `LibQi`__, the ``qi``
 Python module.
 
+Requirements
+============
+
+Requirements can be found in the [`Pipfile`](Pipfile).
+You can work on this project in a virtual environment by running:
+
+.. code:: bash
+
+  pipenv install
+  pipenv shell
+
 __ LibQi_repo_
 
 Building
