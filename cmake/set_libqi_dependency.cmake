@@ -40,7 +40,7 @@ else()
   include(set_libqi_dependency_system)
 endif()
 
-target_link_libraries(qi.interface INTERFACE cxx14)
+target_link_libraries(qi.interface INTERFACE cxx17)
 
 # Generate a Python file containing information about the native part of the
 # module.\
