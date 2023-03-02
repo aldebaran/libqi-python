@@ -46,7 +46,7 @@ enable_warnings(qi_python_objects)
 target_include_directories(qi_python_objects PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(qi_python_objects
-  PUBLIC cxx11
+  PUBLIC cxx17
          pybind11
          qi.interface)
 
@@ -90,7 +90,7 @@ target_sources(qi_python
 
 enable_warnings(qi_python)
 
-target_link_libraries(qi_python PRIVATE cxx11 qi_python_objects)
+target_link_libraries(qi_python PRIVATE cxx17 qi_python_objects)
 
 set_target_properties(qi_python
   PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${QIPYTHON_PYTHON_MODULE_NAME}

@@ -1,4 +1,4 @@
-overridable_variable(LIBQI_VERSION 3.0.0)
+overridable_variable(LIBQI_VERSION 4.0.0)
 
 # Our github clone is sometimes late or is missing tags, so we enable
 # customisation of the URL at configuration time, so users can use another clone.
@@ -40,7 +40,7 @@ else()
   include(set_libqi_dependency_system)
 endif()
 
-target_link_libraries(qi.interface INTERFACE cxx11)
+target_link_libraries(qi.interface INTERFACE cxx17)
 
 # Generate a Python file containing information about the native part of the
 # module.\
