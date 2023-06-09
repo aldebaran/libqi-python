@@ -1,2 +1,8 @@
 include README.rst
 include COPYING
+include CMakeLists.txt
+graft cmake
+graft qi
+graft examples
+graft qipython
+graft src
