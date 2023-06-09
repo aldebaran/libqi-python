@@ -1,0 +1,1 @@
+__version__ = "@QI_PYTHON_VERSION_STRING@"

@@ -6,3 +6,4 @@ build*
 _skbuild
 dist
 *.egg-info
+CMakeUserPresets.json

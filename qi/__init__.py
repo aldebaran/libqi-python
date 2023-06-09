@@ -5,14 +5,6 @@
 
 """LibQi Python bindings."""
 
-import platform
-from packaging import version
-
-py_version = version.parse(platform.python_version())
-min_version = version.parse('3.5')
-if py_version < min_version:
-    raise RuntimeError('Python 3.5+ is required.')
-
 import sys  # noqa: E402
 import atexit  # noqa: E402
 
