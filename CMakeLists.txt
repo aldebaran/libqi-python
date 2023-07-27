@@ -66,16 +66,14 @@ endif()
 ##############################################################################
 # Find Python
 ##############################################################################
-# First search for Python with Interpreter+Devel components, to allow the module
-# to look for the interpreter that goes with the Python development library.
-# Then if it could not find both, try looking for the development component
-# only, but this time force the module to find it or fail (REQUIRED).
-# Some of our toolchains (when crosscompiling for instance) have the Python
-# library but not an interpreter that can run on the host.
-find_package(Python COMPONENTS Development Interpreter)
-if(NOT Python_FOUND)
-  find_package(Python REQUIRED COMPONENTS Development)
-endif()
+find_package(
+  Python REQUIRED
+  COMPONENTS
+    Development.Module
+  OPTIONAL_COMPONENTS
+    Interpreter
+    Development.Embed
+)
 
 ##############################################################################
 # Find Boost
@@ -323,47 +321,49 @@ if(BUILD_TESTING)
       qi::qi
   )
 
-  add_executable(test_qipython)
-  target_sources(
-    test_qipython
-    PRIVATE
-      tests/common.hpp
-      tests/test_qipython.cpp
-      tests/test_guard.cpp
-      tests/test_types.cpp
-      tests/test_signal.cpp
-      tests/test_property.cpp
-      tests/test_object.cpp
-      tests/test_module.cpp
-  )
-  target_link_libraries(
-    test_qipython
+  if(Python_Development.Embed_FOUND)
+    add_executable(test_qipython)
+    target_sources(
+      test_qipython
       PRIVATE
+        tests/common.hpp
+        tests/test_qipython.cpp
+        tests/test_guard.cpp
+        tests/test_types.cpp
+        tests/test_signal.cpp
+        tests/test_property.cpp
+        tests/test_object.cpp
+        tests/test_module.cpp
+    )
+    target_link_libraries(
+      test_qipython
+        PRIVATE
+          qi_python_objects
+          cxx_standard
+          Python::Python
+          Boost::headers
+          pybind11::pybind11
+          GTest::gmock
+    )
+    gtest_discover_tests(test_qipython)
+
+    add_executable(test_qipython_local_interpreter)
+    target_sources(
+      test_qipython_local_interpreter
+      PRIVATE
+        tests/test_qipython_local_interpreter.cpp
+    )
+    target_link_libraries(
+      test_qipython_local_interpreter
+      PRIVATE
+        Python::Python
+        pybind11::pybind11
         qi_python_objects
         cxx_standard
-        Python::Python
-        Boost::headers
-        pybind11::pybind11
         GTest::gmock
-  )
-  gtest_discover_tests(test_qipython)
-
-  add_executable(test_qipython_local_interpreter)
-  target_sources(
-    test_qipython_local_interpreter
-    PRIVATE
-      tests/test_qipython_local_interpreter.cpp
-  )
-  target_link_libraries(
-    test_qipython_local_interpreter
-    PRIVATE
-      Python::Python
-      pybind11::pybind11
-      qi_python_objects
-      cxx_standard
-      GTest::gmock
-  )
-  gtest_discover_tests(test_qipython_local_interpreter)
+    )
+    gtest_discover_tests(test_qipython_local_interpreter)
+  endif()
 
   if(NOT Python_Interpreter_FOUND)
     message(WARNING "tests: a compatible Python Interpreter was NOT found, Python tests are DISABLED.")
