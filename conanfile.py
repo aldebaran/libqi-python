@@ -54,7 +54,7 @@ USED_BOOST_COMPONENTS = [
 class QiPythonConan(ConanFile):
     requires = [
         "boost/[~1.78]",
-        "pybind11/[~2.9]",
+        "pybind11/[^2.9]",
         "qi/4.0.1",
     ]
 
