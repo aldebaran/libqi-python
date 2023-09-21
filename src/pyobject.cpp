@@ -333,7 +333,7 @@ Object toObject(const ::py::object& obj)
                                              : ObjectThreadingModel_SingleThread);
 
   const auto attrKeys = ::py::reinterpret_steal<::py::list>(PyObject_Dir(obj.ptr()));
-  for (const ::py::handle& pyAttrKey : attrKeys)
+  for (const auto& pyAttrKey : attrKeys)
   {
     QI_ASSERT_TRUE(pyAttrKey);
     QI_ASSERT_FALSE(pyAttrKey.is_none());
@@ -342,7 +342,7 @@ Object toObject(const ::py::object& obj)
     const auto attrKey = pyAttrKey.cast<std::string>();
     auto memberName = attrKey;
 
-    const ::py::object attr = obj.attr(pyAttrKey);
+    const auto attr = obj.attr(pyAttrKey);
     if (attr.is_none())
     {
       qiLogVerbose() << "The object attribute '" << attrKey

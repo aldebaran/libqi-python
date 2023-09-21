@@ -35,15 +35,15 @@ bool isUnboundMethod(const ::py::function& func, const ::py::object& object)
 
   GILAcquire lock;
   const auto dir = ::py::reinterpret_steal<::py::list>(PyObject_Dir(object.ptr()));
-  for (const ::py::handle attrName : dir)
+  for (const auto& attrName : dir)
   {
-    const ::py::handle attr = object.attr(attrName);
+    const auto attr = object.attr(attrName);
     QI_ASSERT_TRUE(attr);
 
     if (!PyMethod_Check(attr.ptr()))
       continue;
 
-    const ::py::handle unboundMethod = PyMethod_GET_FUNCTION(attr.ptr());
+    const auto unboundMethod = ::py::reinterpret_borrow<::py::object>(PyMethod_GET_FUNCTION(attr.ptr()));
     if (func.is(unboundMethod))
       return true;
   }
