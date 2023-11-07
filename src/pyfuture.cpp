@@ -53,8 +53,8 @@ template<typename R, typename... Args>
 std::function<qi::Future<R>(Args...)> toContinuation(const ::py::function& cb)
 {
   GILAcquire lock;
-  GILGuardedObject guardedCb(cb);
-  auto callGuardedCb = [=](Args... args) mutable {
+  SharedObject sharedCb(cb);
+  auto callSharedCb = [=](Args... args) mutable {
     GILAcquire lock;
     const auto handleExcept = ka::handle_exception_rethrow(
       exceptionLogVerbose(
@@ -62,17 +62,18 @@ std::function<qi::Future<R>(Args...)> toContinuation(const ::py::function& cb)
         "An exception occurred while executing a future continuation"),
       ka::type_t<::py::object>{});
     const auto pyRes =
-      ka::invoke_catch(handleExcept, *guardedCb, std::forward<Args>(args)...);
-    // Release references immediately while we hold the GIL, instead of waiting
-    // for the lambda destructor to relock the GIL.
-    *guardedCb = {};
+      ka::invoke_catch(handleExcept, [&] {
+        return invokeCatchPythonError(
+          sharedCb.takeInner(),
+          std::forward<Args>(args)...);
+      });
     return castIfNotVoid<R>(pyRes);
   };
 
   auto strand = strandOfFunction(cb);
   if (strand)
-    return strand->schedulerFor(std::move(callGuardedCb));
-  return futurizeOutput(std::move(callGuardedCb));
+    return strand->schedulerFor(std::move(callSharedCb));
+  return futurizeOutput(std::move(callSharedCb));
 }
 
 void addCallback(Future fut, const ::py::function& cb)

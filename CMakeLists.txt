@@ -115,6 +115,7 @@ target_sources(
 
   PUBLIC
     qipython/common.hpp
+    qipython/common.hxx
     qipython/pyapplication.hpp
     qipython/pyasync.hpp
     qipython/pyclock.hpp

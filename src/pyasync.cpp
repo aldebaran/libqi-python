@@ -38,19 +38,15 @@ constexpr const auto delayArgName = "delay";
 
   const MicroSeconds delay(usDelay);
 
-  GILGuardedObject guardCb(pyCallback);
-  GILGuardedObject guardArgs(std::move(args));
-  GILGuardedObject guardKwargs(std::move(kwargs));
-
+  SharedObject sharedCb(pyCallback);
+  SharedObject sharedArgs(std::move(args));
+  SharedObject sharedKwArgs(std::move(kwargs));
   auto invokeCallback = [=]() mutable {
-    GILAcquire lock;
-    auto res = ::py::object((*guardCb)(**guardArgs, ***guardKwargs)).cast<AnyValue>();
-    // Release references immediately while we hold the GIL, instead of waiting
-    // for the lambda destructor to relock the GIL.
-    *guardKwargs = {};
-    *guardArgs = {};
-    *guardCb = {};
-    return res;
+    GILAcquire acquire;
+    return invokeCatchPythonError(
+        sharedCb.takeInner(),
+        *sharedArgs.takeInner(),
+        **sharedKwArgs.takeInner()).cast<AnyValue>();
   };
 
   // If there is a strand attached to that callable, we use it but we cannot use

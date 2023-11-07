@@ -83,7 +83,7 @@ void exportApplication(::py::module& m)
 
   GILAcquire lock;
 
-  class_<Application, std::unique_ptr<Application, DeleteInOtherThread>>(
+  class_<Application>(
     m, "Application")
     .def(init(withArgcArgv<>([](int& argc, char**& argv) {
            GILRelease unlock;
@@ -93,8 +93,7 @@ void exportApplication(::py::module& m)
     .def_static("run", &Application::run, call_guard<GILRelease>())
     .def_static("stop", &Application::stop, call_guard<GILRelease>());
 
-  class_<ApplicationSession,
-         std::unique_ptr<ApplicationSession, DeleteInOtherThread>>(
+  class_<ApplicationSession>(
     m, "ApplicationSession")
 
     .def(init(withArgcArgv<bool, const std::string&>(

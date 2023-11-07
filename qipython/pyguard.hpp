@@ -10,6 +10,7 @@
 
 #include <qipython/common.hpp>
 #include <ka/typetraits.hpp>
+#include <pybind11/pybind11.h>
 #include <type_traits>
 
 namespace qi
@@ -17,10 +18,25 @@ namespace qi
 namespace py
 {
 
-/// Returns whether or not the GIL is currently held by the current thread.
-inline bool currentThreadHoldsGil()
+/// Returns whether or not the GIL is currently held by the current thread. If
+/// the interpreter is not yet initialized or has been finalized, returns an
+/// empty optional, as there is no GIL available.
+inline boost::optional<bool> currentThreadHoldsGil()
 {
-  return PyGILState_Check() == 1;
+  // PyGILState_Check() returns 1 (success) before the creation of the GIL and
+  // after the destruction of the GIL.
+  if (Py_IsInitialized() == 1) {
+    const auto gilAcquired = PyGILState_Check() == 1;
+    return boost::make_optional(gilAcquired);
+  }
+  return boost::none;
+}
+
+/// Returns whether or not the GIL exists (i.e the interpreter is initialized
+/// and not finalizing) and is currently held by the current thread.
+inline bool gilExistsAndCurrentThreadHoldsIt()
+{
+  return currentThreadHoldsGil().value_or(false);
 }
 
 /// DefaultConstructible Guard
@@ -34,98 +50,6 @@ ka::ResultOf<F(Args&&...)> invokeGuarded(F&& f, Args&&... args)
 
 namespace detail
 {
-
-// Guards the copy, construction and destruction of an object, and only when
-// in case of copy construction the source object evaluates to true, and in case
-// of destruction, the object itself evaluates to true.
-//
-// Explanation:
-//   pybind11::object only requires the GIL to be locked on copy and if the
-//   source is not null. Default construction does not require the GIL either.
-template<typename Guard, typename Object>
-class Guarded
-{
-  using Storage =
-    typename std::aligned_storage<sizeof(Object), alignof(Object)>::type;
-  Storage _object;
-
-  Object& object() { return reinterpret_cast<Object&>(_object); }
-  const Object& object() const { return reinterpret_cast<const Object&>(_object); }
-
-public:
-  template<typename Arg0, typename... Args,
-           ka::EnableIf<std::is_constructible<Object, Arg0&&, Args&&...>::value, int> = 0>
-  explicit Guarded(Arg0&& arg0, Args&&... args)
-  {
-    Guard g;
-    new(&_object) Object(std::forward<Arg0>(arg0), std::forward<Args>(args)...);
-  }
-
-  Guarded()
-  {
-    // Default construction, no GIL needed.
-    new(&_object) Object();
-  }
-
-  Guarded(Guarded& o)
-  {
-    boost::optional<Guard> optGuard;
-    if (o.object())
-      optGuard.emplace();
-    new(&_object) Object(o.object());
-  }
-
-  Guarded(const Guarded& o)
-  {
-    boost::optional<Guard> optGuard;
-    if (o.object())
-      optGuard.emplace();
-    new(&_object) Object(o.object());
-  }
-
-  Guarded(Guarded&& o)
-  {
-    new(&_object) Object(std::move(o.object()));
-  }
-
-  ~Guarded()
-  {
-    boost::optional<Guard> optGuard;
-    if (object())
-      optGuard.emplace();
-    object().~Object();
-  }
-
-  Guarded& operator=(const Guarded& o)
-  {
-    if (this == &o)
-      return *this;
-
-    {
-      boost::optional<Guard> optGuard;
-      if (o.object())
-        optGuard.emplace();
-      object() = o.object();
-    }
-    return *this;
-  }
-
-  Guarded& operator=(Guarded&& o)
-  {
-    if (this == &o)
-      return *this;
-
-    object() = std::move(o.object());
-    return *this;
-  }
-
-  Object& operator*() { return object(); }
-  const Object& operator*() const { return object(); }
-  Object* operator->() { return &object(); }
-  const Object* operator->() const { return &object(); }
-  explicit operator Object&() { return object(); }
-  explicit operator const Object&() const { return object(); }
-};
 
 /// G == pybind11::gil_scoped_acquire || G == pybind11::gil_scoped_release
 template<typename G>
@@ -141,37 +65,52 @@ void pybind11GuardDisarm(G& guard)
 } // namespace detail
 
 /// RAII utility type that guarantees that the GIL is locked for the scope of
-/// the lifetime of the object.
+/// the lifetime of the object. If the GIL cannot be acquired (for example,
+/// because the interpreter is finalizing), throws an `InterpreterFinalizingException`
+/// exception.
 ///
 /// Objects of this type (or objects composed of them) must not be kept alive
 /// after the hand is given back to the interpreter.
 ///
 /// This type is re-entrant.
 ///
-/// postcondition: `GILAcquire acq;` establishes
-/// `(interpreterIsFinalizing() && *interpreterIsFinalizing()) || currentThreadHoldsGil()`
+/// postcondition: `GILAcquire acq;` establishes `gilExistsAndCurrentThreadHoldsIt()`
 struct GILAcquire
 {
   inline GILAcquire()
   {
-    const auto optIsFinalizing = interpreterIsFinalizing();
-    const auto definitelyFinalizing = optIsFinalizing && *optIsFinalizing;
-    // `gil_scoped_acquire` is re-entrant by itself, so we don't need to check
-    // whether or not the GIL is already held by the current thread.
-    if (!definitelyFinalizing)
-      _acq.emplace();
-    QI_ASSERT(definitelyFinalizing || currentThreadHoldsGil());
+    if (gilExistsAndCurrentThreadHoldsIt())
+      return;
+
+    const auto isFinalizing = interpreterIsFinalizing().value_or(false);
+    if (isFinalizing)
+      throw InterpreterFinalizingException();
+
+    _state = ::PyGILState_Ensure();
+    QI_ASSERT(gilExistsAndCurrentThreadHoldsIt());
   }
+
+  inline ~GILAcquire()
+  {
+    // Even if releasing the GIL while the interpreter is finalizing is allowed, it does
+    // require the GIL to be currently held. But we have no guarantee that this is the case,
+    // because the GIL may have been released since we acquired it, and we could not
+    // reacquire it after that (maybe the interpreter is in fact finalizing).
+    // Therefore, only release the GIL if it is currently held by this thread.
+    if (_state && gilExistsAndCurrentThreadHoldsIt())
+      ::PyGILState_Release(*_state);
+  }
+
 
   GILAcquire(const GILAcquire&) = delete;
   GILAcquire& operator=(const GILAcquire&) = delete;
 
 private:
-  boost::optional<pybind11::gil_scoped_acquire> _acq;
+  boost::optional<PyGILState_STATE> _state;
 };
 
-/// RAII utility type that guarantees that the GIL is unlocked for the scope of
-/// the lifetime of the object.
+/// RAII utility type that (as a best effort) tries to ensure that the GIL is
+/// unlocked for the scope of the lifetime of the object.
 ///
 /// Objects of this type (or objects composed of them) must not be kept alive
 /// after the hand is given back to the interpreter.
@@ -179,16 +118,44 @@ private:
 /// This type is re-entrant.
 ///
 /// postcondition: `GILRelease rel;` establishes
-/// `(interpreterIsFinalizing() && *interpreterIsFinalizing()) || !currentThreadHoldsGil()`
+///   `interpreterIsFinalizing().value_or(false) ||
+///    !gilExistsAndCurrentThreadHoldsIt()`
 struct GILRelease
 {
   inline GILRelease()
   {
-    const auto optIsFinalizing = interpreterIsFinalizing();
-    const auto definitelyFinalizing = optIsFinalizing && *optIsFinalizing;
-    if (!definitelyFinalizing && currentThreadHoldsGil())
+    // Even if releasing the GIL while the interpreter is finalizing is allowed,
+    // it does require the GIL to be currently held. However, reacquiring the
+    // GIL is forbidden if finalization started.
+    //
+    // It may happen that we try to release the GIL from a function ('F') called
+    // by the Python interpreter, while it is holding the GIL. In this case, if
+    // we try to release it, then fail to reacquire it and return the hand to
+    // the interpreter, the interpreter will most likely terminate the process,
+    // as it expects to still be holding the GIL. Failure to reacquire the GIL
+    // can only happen if the interpreter started finalization, either before we
+    // released it, or while it was released.
+    //
+    // Fortunately, in this case, because the interpreter is busy executing the
+    // function 'F', it is not possible for it to start finalization until 'F'
+    // returns. This means that the only possible reason of failure of
+    // reacquisition of the GIL is because the interpreter was finalizing
+    // *before* calling 'F', therefore before we released to GIL. Therefore, to
+    // prevent this failure, we check if the interpreter is finalizing before
+    // releasing the GIL, and if it is, we do nothing, and the GIL stays held.
+    const auto isFinalizing = interpreterIsFinalizing().value_or(false);
+    if (!isFinalizing && gilExistsAndCurrentThreadHoldsIt())
       _release.emplace();
-    QI_ASSERT(definitelyFinalizing || !currentThreadHoldsGil());
+    QI_ASSERT(isFinalizing || !gilExistsAndCurrentThreadHoldsIt());
+  }
+
+  inline ~GILRelease()
+  {
+    // Reacquiring the GIL is forbidden when the interpreter is finalizing, as
+    // it may terminate the current thread.
+    const auto isFinalizing = interpreterIsFinalizing().value_or(false);
+    if (_release && isFinalizing)
+      detail::pybind11GuardDisarm(*_release);
   }
 
   GILRelease(const GILRelease&) = delete;
@@ -198,11 +165,83 @@ private:
   boost::optional<pybind11::gil_scoped_release> _release;
 };
 
-/// Wraps a pybind11::object value and locks the GIL on copy and destruction.
+/// Wraps a Python object as a shared reference-counted value that does not
+/// require the GIL to copy, move or assign to.
 ///
-/// This is useful for instance to put pybind11 objects in lambda functions so
-/// that they can be copied around safely.
-using GILGuardedObject = detail::Guarded<GILAcquire, pybind11::object>;
+/// On destruction, it releases the object with the GIL acquired. However, if
+/// the GIL cannot be acquired, the object is leaked. This is most likely
+/// mitigated by the fact that if the GIL is not available, it means the object
+/// already has been or soon will be garbage collected by interpreter
+/// finalization.
+template<typename T>
+class SharedObject
+{
+  static_assert(std::is_base_of_v<pybind11::object, T>,
+                "template parameter T must be a subclass of pybind11::object");
+
+  struct State
+  {
+    std::mutex mutex;
+    T object;
+  };
+  std::shared_ptr<State> _state;
+
+  struct StateDeleter
+  {
+    inline void operator()(State* state) const
+    {
+      auto handle = state->object.release();
+      delete state;
+
+      // Do not lock the GIL if there is nothing to release.
+      if (!handle)
+        return;
+
+      try
+      {
+        GILAcquire acquire;
+        handle.dec_ref();
+      }
+      catch (const qi::py::InterpreterFinalizingException&)
+      {
+        // Nothing, the interpreter is finalizing.
+      }
+    }
+  };
+
+public:
+  SharedObject() = default;
+
+  inline explicit SharedObject(T object)
+    : _state(new State { std::mutex(), std::move(object) }, StateDeleter())
+  {
+  }
+
+  /// Copies the inner Python object value by incrementing its reference count.
+  ///
+  /// @pre: If the inner value is not null, the GIL must be acquired.
+  T inner() const
+  {
+    QI_ASSERT_NOT_NULL(_state);
+    std::scoped_lock<std::mutex> lock(_state->mutex);
+    return _state->object;
+  }
+
+  /// Takes the inner Python object value and leaves a null value in its place.
+  ///
+  /// Any copy of the shared object will now have a null inner value.
+  ///
+  /// This operation does not require the GIL as the reference count of the
+  /// object is preserved.
+  T takeInner()
+  {
+    QI_ASSERT_NOT_NULL(_state);
+    std::scoped_lock<std::mutex> lock(_state->mutex);
+    /// Hypothesis: Moving a `pybind11::object` steals the object and preserves
+    /// its reference count and therefore does not require the GIL.
+    return ka::exchange(_state->object, {});
+  }
+};
 
 /// Deleter that deletes the pointer outside the GIL.
 ///
@@ -215,23 +254,6 @@ struct DeleteOutsideGIL
   {
     GILRelease unlock;
     delete ptr;
-  }
-};
-
-/// Deleter that delays the destruction of an object to another thread.
-struct DeleteInOtherThread
-{
-  template<typename T>
-  void operator()(T* ptr) const
-  {
-    GILRelease unlock;
-    // `std::async` returns an object, that unless moved from will block when
-    // destroyed until the task is complete, which is unwanted behavior here.
-    // Therefore we just take the result of the `std::async` call into a local
-    // variable and then ignore it.
-    auto fut = std::async(std::launch::async, [](std::unique_ptr<T>) {},
-                          std::unique_ptr<T>(ptr));
-    QI_IGNORE_UNUSED(fut);
   }
 };
 

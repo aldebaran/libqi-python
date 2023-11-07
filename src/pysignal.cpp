@@ -26,7 +26,7 @@ namespace
 
 constexpr static const auto asyncArgName = "_async";
 
-AnyReference dynamicCallFunction(const GILGuardedObject& func,
+AnyReference dynamicCallFunction(const SharedObject<::py::function>& func,
                                  const AnyReferenceVector& args)
 {
   GILAcquire lock;
@@ -34,7 +34,7 @@ AnyReference dynamicCallFunction(const GILGuardedObject& func,
   ::py::size_t i = 0;
   for (const auto& arg : args)
     pyArgs[i++] = castToPyObject(arg);
-  (*func)(*pyArgs);
+  invokeCatchPythonError(func.inner(), *pyArgs);
   return AnyValue::makeVoid().release();
 }
 
@@ -49,7 +49,7 @@ template<typename F>
 
   SignalSubscriber subscriber(AnyFunction::fromDynamicFunction(
                                 boost::bind(dynamicCallFunction,
-                                            GILGuardedObject(pyCallback),
+                                            SharedObject(pyCallback),
                                             _1)),
                               strand.get());
   subscriber.setCallType(MetaCallType_Auto);
