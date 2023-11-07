@@ -36,20 +36,21 @@ BOOST_COMPONENTS = [
 ]
 
 USED_BOOST_COMPONENTS = [
-    "atomic",  # required by thread
-    "chrono",  # required by thread
-    "container",  # required by thread
-    "date_time",  # required by thread
-    "exception",  # required by thread
-    "filesystem",  # required by libqi
-    "locale",  # required by libqi
-    "program_options",  # required by libqi
-    "random",  # required by libqi
-    "regex",  # required by libqi
-    "system",  # required by thread
     "thread",
+    # required by libqi
+    "filesystem",
+    "locale",
+    "program_options",
+    "random",
+    "regex",
+    # required by boost.thread
+    "atomic",
+    "chrono",
+    "container",
+    "date_time",
+    "exception",
+    "system",
 ]
-
 
 class QiPythonConan(ConanFile):
     requires = [
