@@ -59,7 +59,7 @@ class QiPythonConan(ConanFile):
     ]
 
     test_requires = [
-        "gtest/cci.20210126",
+        "gtest/[~1.14]",
     ]
 
     generators = "CMakeToolchain", "CMakeDeps"
