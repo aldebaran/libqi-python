@@ -52,6 +52,10 @@ repository = "https://github.com/aldebaran/libqi-python"
 # Rely only on CMake install, not on Python packages detection.
 wheel.packages = []
 
+[tool.scikit-build.cmake.define]
+# Disable building tests by default when building a wheel.
+BUILD_TESTING = "OFF"
+
 [tool.cibuildwheel]
 build = "cp*manylinux*x86_64"
 build-frontend = "build"

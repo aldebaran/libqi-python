@@ -12,7 +12,7 @@ yum install -y perl-IPC-Cmd perl-Digest-SHA
 conan config install "$PACKAGE/ci/conan"
 
 # Clone and export libqi to Conan cache.
-QI_VERSION=$(sed -nE '/^\s*requires\s*=/,/^\s*]/{ s/\s*"qi\/([^"]+)"/\1/p }' "$PACKAGE/conanfile.py")
+QI_VERSION=$(sed -nE '/^\s*requires\s*=/,/^\s*]/{ s/\s*"qi\/([^"]+)".*/\1/p }' "$PACKAGE/conanfile.py")
 
 GIT_SSL_NO_VERIFY=true \
     git clone --depth=1 \

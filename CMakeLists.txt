@@ -346,7 +346,10 @@ if(BUILD_TESTING)
           pybind11::pybind11
           GTest::gmock
     )
-    gtest_discover_tests(test_qipython)
+    gtest_discover_tests(
+      test_qipython
+      DISCOVERY_MODE PRE_TEST
+    )
 
     add_executable(test_qipython_local_interpreter)
     target_sources(
@@ -363,7 +366,10 @@ if(BUILD_TESTING)
         cxx_standard
         GTest::gmock
     )
-    gtest_discover_tests(test_qipython_local_interpreter)
+    gtest_discover_tests(
+      test_qipython_local_interpreter
+      DISCOVERY_MODE PRE_TEST
+    )
   endif()
 
   if(NOT Python_Interpreter_FOUND)
