@@ -125,6 +125,28 @@ inline boost::optional<bool> interpreterIsFinalizing()
 #endif
 }
 
+/// Acquires the GIL, then invokes a function with the given arguments, but
+/// catches any `pybind11::error_already_set` exception thrown during this
+/// invocation, and throws a `std::runtime_error` instead. This is useful to
+/// avoid the undefined behavior caused by the `what` member function of
+/// `pybind11::error_already_set` when the GIL is not acquired.
+template<typename F, typename... Args>
+auto invokeCatchPythonError(F&& f, Args&&... args);
+
+/// Exception type thrown when an operation fails because the interpreter is
+/// finalizing.
+///
+/// Some operations are forbidden during interpreter finalization as they may
+/// terminate the thread they are called from. This exception allows stopping
+/// the flow of execution in this case before such functions are called.
+struct InterpreterFinalizingException : std::exception
+{
+  inline const char* what() const noexcept override
+  {
+    return "the interpreter is finalizing";
+  }
+};
+
 } // namespace py
 } // namespace qi
 
@@ -202,5 +224,7 @@ namespace detail
 } // namespace pybind11
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, boost::shared_ptr<T>);
+
+#include <qipython/common.hxx>
 
 #endif // QIPYTHON_COMMON_HPP

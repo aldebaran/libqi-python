@@ -1,0 +1,55 @@
+stages:
+  - build
+  - publish
+  - release
+
+.if-tag: &if-tag
+  if: "$CI_COMMIT_TAG =~ /^qi-python-v/"
+
+build-wheel:
+  stage: build
+  rules:
+    # Allow manually building on a Git commit on any branch.
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+    # Always build on a Git tag.
+    - <<: *if-tag
+  tags:
+    - docker
+  image: python:3.8
+  variables:
+    LIBQI_REPOSITORY_URL: "https://gitlab-ci-token:$CI_JOB_TOKEN@$CI_SERVER_HOST/qi/libqi"
+  script:
+    - curl -sSL https://get.docker.com/ | sh
+    - pip install cibuildwheel==2.14.1
+    - cibuildwheel --output-dir wheelhouse
+  artifacts:
+    paths:
+      - wheelhouse/
+
+publish-wheel:
+  stage: publish
+  image: python:latest
+  rules:
+    - <<: *if-tag
+  needs:
+    - build-wheel
+  script:
+    - pip install build twine
+    - python -m build
+    - TWINE_PASSWORD="${CI_JOB_TOKEN}"
+        TWINE_USERNAME=gitlab-ci-token
+        python -m twine upload
+        --repository-url "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi"
+        wheelhouse/*
+
+create-release:
+  stage: release
+  rules:
+    - <<: *if-tag
+  script:
+    - echo "Releasing $CI_COMMIT_TAG."
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: 'lib$CI_COMMIT_TITLE'
+    description: '$CI_COMMIT_TAG_MESSAGE'

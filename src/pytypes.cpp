@@ -28,16 +28,6 @@ namespace py
 namespace
 {
 
-struct ObjectDecRef
-{
-  ::py::handle obj;
-  void operator()() const
-  {
-    GILAcquire lock;
-    obj.dec_ref();
-  }
-};
-
 template<typename T>
 boost::optional<::py::object> tryToCastObjectTo(ObjectTypeInterface* type,
                                                 void* ptr)

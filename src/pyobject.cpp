@@ -149,7 +149,7 @@ using GenericFunction = std::function<::py::object(::py::args)>;
 // @pre `cargs.size() > 0`, arguments must at least contain a `DynamicObject`
 //      on which the function is to be called.
 AnyReference callPythonMethod(const AnyReferenceVector& cargs,
-                              const GILGuardedObject& method)
+                              const SharedObject<::py::function>& method)
 {
   auto it = cargs.begin();
   const auto cargsEnd = cargs.end();
@@ -170,7 +170,7 @@ AnyReference callPythonMethod(const AnyReferenceVector& cargs,
 
   // Convert Python future object into a C++ Future, to allow libqi to unwrap
   // it.
-  const ::py::object ret = (*method)(*args);
+  const ::py::object ret = invokeCatchPythonError(method.inner(), *args);
   if (::py::isinstance<Future>(ret))
     return AnyValue::from(ret.cast<Future>()).release();
   return AnyReference::from(ret).content().clone();
@@ -259,7 +259,7 @@ boost::optional<unsigned int> registerMethod(DynamicObjectBuilder& gob,
 
   return gob.xAdvertiseMethod(mmb, AnyFunction::fromDynamicFunction(
                                      boost::bind(callPythonMethod, _1,
-                                                 GILGuardedObject(method))));
+                                                 SharedObject(method))));
 }
 
 } // namespace
@@ -333,7 +333,7 @@ Object toObject(const ::py::object& obj)
                                              : ObjectThreadingModel_SingleThread);
 
   const auto attrKeys = ::py::reinterpret_steal<::py::list>(PyObject_Dir(obj.ptr()));
-  for (const ::py::handle& pyAttrKey : attrKeys)
+  for (const auto& pyAttrKey : attrKeys)
   {
     QI_ASSERT_TRUE(pyAttrKey);
     QI_ASSERT_FALSE(pyAttrKey.is_none());
@@ -342,7 +342,7 @@ Object toObject(const ::py::object& obj)
     const auto attrKey = pyAttrKey.cast<std::string>();
     auto memberName = attrKey;
 
-    const ::py::object attr = obj.attr(pyAttrKey);
+    const auto attr = obj.attr(pyAttrKey);
     if (attr.is_none())
     {
       qiLogVerbose() << "The object attribute '" << attrKey
@@ -393,11 +393,7 @@ Object toObject(const ::py::object& obj)
 
   // This is a useless callback, needed to keep a reference on the python object.
   // When the GenericObject is destroyed, the reference is released.
-  GILGuardedObject guardedObj(obj);
-  Object anyobj = gob.object([guardedObj](GenericObject*) mutable {
-      GILAcquire lock;
-      *guardedObj = {};
-    });
+  Object anyobj = gob.object([sharedObj = SharedObject(obj)](GenericObject*) {});
 
   // If there was no ObjectUid stored in the python object, store a new one.
   if (!maybeObjectUid)

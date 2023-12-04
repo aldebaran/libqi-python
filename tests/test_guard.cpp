@@ -39,70 +39,6 @@ TEST_F(InvokeGuardedTest, ExecutesFunctionWithGuard)
   EXPECT_EQ(52, r);
 }
 
-using GuardedTest = GuardTest;
-
-TEST_F(GuardedTest, GuardsConstruction)
-{
-  using T = GuardedTest;
-
-  struct Check
-  {
-    int i;
-    Check(int i) : i(i) { EXPECT_TRUE(T::guarded); }
-    explicit operator bool() const { return true; }
-  };
-
-  EXPECT_FALSE(T::guarded);
-  qi::py::detail::Guarded<SetFlagGuard, Check> g(42);
-  EXPECT_FALSE(T::guarded);
-  EXPECT_EQ(42, g->i);
-}
-
-TEST_F(GuardedTest, GuardsCopyConstruction)
-{
-  using T = GuardedTest;
-
-  struct Check
-  {
-    int i = 0;
-    Check(int i) : i(i) {}
-    Check(const Check& o)
-      : i(o.i)
-    { EXPECT_TRUE(T::guarded); }
-    explicit operator bool() const { return true; }
-  };
-
-  EXPECT_FALSE(T::guarded);
-  qi::py::detail::Guarded<SetFlagGuard, Check> a(42);
-  qi::py::detail::Guarded<SetFlagGuard, Check> b(a);
-  EXPECT_FALSE(T::guarded);
-  EXPECT_EQ(42, a->i);
-  EXPECT_EQ(42, b->i);
-}
-
-TEST_F(GuardedTest, GuardsCopyAssignment)
-{
-  using T = GuardedTest;
-
-  struct Check
-  {
-    int i = 0;
-    Check(int i) : i(i) {}
-    Check& operator=(const Check& o)
-    { EXPECT_TRUE(T::guarded); i = o.i; return *this; }
-    explicit operator bool() const { return true; }
-  };
-
-  EXPECT_FALSE(T::guarded);
-  qi::py::detail::Guarded<SetFlagGuard, Check> a(42);
-  qi::py::detail::Guarded<SetFlagGuard, Check> b(37);
-  EXPECT_FALSE(T::guarded);
-  b = a;
-  EXPECT_FALSE(T::guarded);
-  EXPECT_EQ(42, a->i);
-  EXPECT_EQ(42, b->i);
-}
-
 TEST(GILAcquire, IsReentrant)
 {
   qi::py::GILAcquire acq0; QI_IGNORE_UNUSED(acq0);
@@ -119,4 +55,58 @@ TEST(GILRelease, IsReentrant)
   qi::py::GILRelease rel1; QI_IGNORE_UNUSED(rel1);
   qi::py::GILRelease rel2; QI_IGNORE_UNUSED(rel2);
   SUCCEED();
+}
+
+struct SharedObject : testing::Test
+{
+  SharedObject()
+  {
+    // GIL is only required for creation of the inner object.
+    object = [&]{
+      qi::py::GILAcquire lock;
+      return pybind11::capsule(
+        &this->destroyed,
+        [](void* destroyed){
+          *reinterpret_cast<bool*>(destroyed) = true;
+        }
+      );
+    }();
+  }
+
+  ~SharedObject()
+  {
+    if (object) {
+      qi::py::GILAcquire lock;
+      object = {};
+    }
+  }
+
+  bool destroyed = false;
+  pybind11::capsule object;
+};
+
+TEST_F(SharedObject, KeepsRefCount)
+{
+  std::optional sharedObject = qi::py::SharedObject(std::move(object));
+  ASSERT_FALSE(object); // object has been released.
+  EXPECT_FALSE(destroyed); // inner object is still alive.
+  {
+    auto sharedObjectCpy = *sharedObject; // copy the shared object locally.
+    EXPECT_FALSE(destroyed); // inner object is maintained by both copies.
+    sharedObject.reset();
+    EXPECT_FALSE(destroyed); // inner object is maintained by the copy.
+  }
+  EXPECT_TRUE(destroyed); // inner object has been destroyed.
+}
+
+TEST_F(SharedObject, TakeInnerStealsInnerRefCount)
+{
+  std::optional sharedObject = qi::py::SharedObject(std::move(object));
+  auto inner = sharedObject->takeInner();
+  EXPECT_FALSE(sharedObject->inner()); // inner object is null.
+  sharedObject.reset();
+  EXPECT_FALSE(destroyed); // inner object is still alive.
+  qi::py::GILAcquire lock; // release local inner object, which requires the GIL.
+  inner = {};
+  EXPECT_TRUE(destroyed); // inner object has been destroyed.
 }
