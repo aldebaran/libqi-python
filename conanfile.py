@@ -56,7 +56,7 @@ class QiPythonConan(ConanFile):
     requires = [
         "boost/[~1.78]",
         "pybind11/[^2.9]",
-        "qi/4.0.1",
+        "qi/4.0.2",
     ]
 
     test_requires = [
