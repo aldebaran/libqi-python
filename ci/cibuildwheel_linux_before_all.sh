@@ -9,6 +9,7 @@ pip install 'conan>=2' 'cmake>=3.23' ninja
 yum install -y perl-IPC-Cmd perl-Digest-SHA
 
 # Install Conan configuration.
+conan profile detect
 conan config install "$PACKAGE/ci/conan"
 
 # Clone and export libqi to Conan cache.
@@ -27,4 +28,4 @@ conan export /work/libqi --version="${QI_VERSION}"
 # This is because the GLIBC from the manylinux images are often older than the
 # ones that were used to build the precompiled binaries, which means the binaries
 # cannot by executed.
-conan install "$PACKAGE" --build="*"
+conan install "$PACKAGE" --build="*" --profile:all default --profile:all cppstd17
