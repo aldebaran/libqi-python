@@ -52,11 +52,12 @@ USED_BOOST_COMPONENTS = [
     "system",
 ]
 
+
 class QiPythonConan(ConanFile):
     requires = [
-        "boost/[~1.78]",
-        "pybind11/[^2.9]",
-        "qi/4.0.2",
+        "boost/[~1.83]",
+        "pybind11/[^2.11]",
+        "qi/[~4]",
     ]
 
     test_requires = [
@@ -77,9 +78,9 @@ class QiPythonConan(ConanFile):
     # Disable every components of Boost unless we actively use them.
     default_options.update(
         {
-            f"boost/*:without_{_name}": False
-            if _name in USED_BOOST_COMPONENTS
-            else True
+            f"boost/*:without_{_name}": (
+                False if _name in USED_BOOST_COMPONENTS else True
+            )
             for _name in BOOST_COMPONENTS
         }
     )
