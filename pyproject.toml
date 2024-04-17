@@ -63,7 +63,6 @@ build-frontend = "build"
 environment-pass = ["LIBQI_REPOSITORY_URL"]
 
 [tool.cibuildwheel.linux]
-manylinux-x86_64-image = "manylinux2014"
 before-all = ["ci/cibuildwheel_linux_before_all.sh {package}"]
 
 [tool.cibuildwheel.linux.config-settings]
