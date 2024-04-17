@@ -595,20 +595,13 @@ public:
 
     using DefaultImpl = DefaultTypeImplMethods<Iterator, TypeByPointerPOD<Iterator>>;
 
-    void* initializeStorage(void* ptr = nullptr) override
-    {
-      return DefaultImpl::initializeStorage(ptr);
-    }
-
+    void* initializeStorage(void* ptr = nullptr) override { return DefaultImpl::initializeStorage(ptr); }
     void* clone(void* storage) override { return DefaultImpl::clone(storage); }
-    void destroy(void* storage) override
-    {
-      destroyDisownedReferences(storage);
-      return DefaultImpl::destroy(storage);
-    }
+    void destroy(void* storage) override { return DefaultImpl::destroy(storage); }
     const TypeInfo& info() override { return DefaultImpl::info(); }
     void* ptrFromStorage(void** s) override { return DefaultImpl::ptrFromStorage(s); }
     bool less(void* a, void* b) override { return DefaultImpl::less(a, b); }
+
     Iterator* asIterPtr(void** storage) { return static_cast<Iterator*>(ptrFromStorage(storage)); }
     Iterator& asIter(void** storage) { return *asIterPtr(storage); }
   };
@@ -680,12 +673,13 @@ public:
       std::advance(it, index);
       const auto key = ::py::reinterpret_borrow<::py::object>(it->first);
       const auto element = ::py::reinterpret_borrow<::py::object>(it->second);
-      const auto keyElementPair = std::make_pair(key, element);
-      auto ref = AnyReference::from(keyElementPair).clone();
+      auto keyRef = AnyReference::from(key);
+      auto elementRef = AnyReference::from(element);
+      auto pairRef = makeGenericTuple({keyRef, elementRef});
       // Store the disowned reference with the list as a context instead of the
       // iterator because the reference might outlive the iterator.
-      storeDisownedReference(dictStorage, ref);
-      return ref;
+      storeDisownedReference(dictStorage, pairRef);
+      return pairRef;
     }
 
     void next(void** storage) override { ++asIter(storage).second; }
@@ -693,21 +687,13 @@ public:
 
     using DefaultImpl = DefaultTypeImplMethods<Iterator, TypeByPointerPOD<Iterator>>;
 
-    void* initializeStorage(void* ptr = nullptr) override
-    {
-      return DefaultImpl::initializeStorage(ptr);
-    }
-
+    void* initializeStorage(void* ptr = nullptr) override { return DefaultImpl::initializeStorage(ptr); }
     void* clone(void* storage) override { return DefaultImpl::clone(storage); }
-    void destroy(void* storage) override
-    {
-      destroyDisownedReferences(storage);
-      return DefaultImpl::destroy(storage);
-    }
-
+    void destroy(void* storage) override { return DefaultImpl::destroy(storage); }
     const TypeInfo& info() override { return DefaultImpl::info(); }
     void* ptrFromStorage(void** s) override { return DefaultImpl::ptrFromStorage(s); }
     bool less(void* a, void* b) override { return DefaultImpl::less(a, b); }
+
     Iterator* asIterPtr(void** storage) { return static_cast<Iterator*>(ptrFromStorage(storage)); }
     Iterator& asIter(void** storage) { return *asIterPtr(storage); }
   };
