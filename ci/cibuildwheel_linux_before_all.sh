@@ -9,17 +9,16 @@ pip install 'conan>=2' 'cmake>=3.23' ninja
 yum install -y perl-IPC-Cmd perl-Digest-SHA
 
 # Install Conan configuration.
+conan profile detect
 conan config install "$PACKAGE/ci/conan"
 
 # Clone and export libqi to Conan cache.
-QI_VERSION=$(sed -nE '/^\s*requires\s*=/,/^\s*]/{ s/\s*"qi\/([^"]+)".*/\1/p }' "$PACKAGE/conanfile.py")
-
 GIT_SSL_NO_VERIFY=true \
-    git clone --depth=1 \
-        --branch "qi-framework-v${QI_VERSION}" \
-        "$LIBQI_REPOSITORY_URL" \
+    git clone \
+        --branch master \
+        https://github.com/aldebaran/libqi.git \
         /work/libqi
-conan export /work/libqi --version="${QI_VERSION}"
+conan export /work/libqi
 
 # Install dependencies of libqi-python from Conan, including libqi.
 #
@@ -27,4 +26,4 @@ conan export /work/libqi --version="${QI_VERSION}"
 # This is because the GLIBC from the manylinux images are often older than the
 # ones that were used to build the precompiled binaries, which means the binaries
 # cannot by executed.
-conan install "$PACKAGE" --build="*"
+conan install "$PACKAGE" --build="*" --profile:all default --profile:all cppstd17

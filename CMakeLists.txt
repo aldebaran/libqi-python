@@ -297,7 +297,7 @@ if(BUILD_TESTING)
   include(GoogleTest)
 
   find_package(qimodule REQUIRED)
-  qi_create_module(moduletest NO_INSTALL)
+  qi_add_module(moduletest)
   target_sources(
     moduletest
     PRIVATE

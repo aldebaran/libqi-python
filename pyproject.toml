@@ -7,7 +7,7 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "qi"
 description = "LibQi Python bindings"
-version = "3.1.4"
+version = "3.1.5"
 readme = "README.rst"
 requires-python = ">=3.7"
 license = { "file" = "COPYING" }
@@ -60,10 +60,7 @@ BUILD_TESTING = "OFF"
 build = "cp*manylinux*x86_64"
 build-frontend = "build"
 
-environment-pass = ["LIBQI_REPOSITORY_URL"]
-
 [tool.cibuildwheel.linux]
-manylinux-x86_64-image = "manylinux2014"
 before-all = ["ci/cibuildwheel_linux_before_all.sh {package}"]
 
 [tool.cibuildwheel.linux.config-settings]

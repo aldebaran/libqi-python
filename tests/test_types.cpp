@@ -387,20 +387,40 @@ TEST_F(TypePassing, Recursive)
   }
 }
 
+TEST_F(TypePassing, ReverseList)
+{
+  exec(
+      "class TestService:\n"
+      "    def func(self, list):\n"
+      // Test the iterator interface.
+      "        for value in list:\n"
+      "            assert(isinstance(value, str))\n"
+      "        assert(list == ['hello', 'world'])\n"
+      );
+  registerService();
+  const std::vector<const char*> list {"hello", "world"};
+  getService().call<void>("func", list);
+}
+
+
 TEST_F(TypePassing, ReverseDict)
 {
   exec(
       "class TestService:\n"
       "    def func(self, dict):\n"
-      "        return dict == {'one' : 1, 'two' : 2, 'three' : 3}\n"
+      // Test the iterator interface.
+      "        for key, value in dict.items():\n"
+      "            assert(isinstance(key, str))\n"
+      "            assert(isinstance(value, int))\n"
+      "        assert(dict == {'one' : 1, 'two' : 2, 'three' : 3})\n"
       );
   registerService();
-  const std::map<std::string, int> expected {
+  const std::map<std::string, int> dict {
     {"one", 1},
     {"two", 2},
     {"three", 3},
   };
-  EXPECT_TRUE(getService().call<bool>("func", expected));
+  getService().call<void>("func", dict);
 }
 
 TEST_F(TypePassing, LogLevel)
