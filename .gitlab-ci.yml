@@ -17,8 +17,6 @@ build-wheel:
   tags:
     - docker
   image: python:3.8
-  variables:
-    LIBQI_REPOSITORY_URL: "https://gitlab-ci-token:$CI_JOB_TOKEN@$CI_SERVER_HOST/qi/libqi"
   script:
     - curl -sSL https://get.docker.com/ | sh
     - pip install cibuildwheel==2.14.1

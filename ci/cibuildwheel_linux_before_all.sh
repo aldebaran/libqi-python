@@ -13,14 +13,12 @@ conan profile detect
 conan config install "$PACKAGE/ci/conan"
 
 # Clone and export libqi to Conan cache.
-QI_VERSION=$(sed -nE '/^\s*requires\s*=/,/^\s*]/{ s/\s*"qi\/([^"]+)".*/\1/p }' "$PACKAGE/conanfile.py")
-
 GIT_SSL_NO_VERIFY=true \
-    git clone --depth=1 \
-        --branch "qi-framework-v${QI_VERSION}" \
-        "$LIBQI_REPOSITORY_URL" \
+    git clone \
+        --branch master \
+        https://github.com/aldebaran/libqi.git \
         /work/libqi
-conan export /work/libqi --version="${QI_VERSION}"
+conan export /work/libqi
 
 # Install dependencies of libqi-python from Conan, including libqi.
 #
