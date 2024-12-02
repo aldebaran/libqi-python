@@ -2,7 +2,7 @@
 *.user
 .pytest_cache
 .cache
-build*
+build/*
 _skbuild
 dist
 *.egg-info
