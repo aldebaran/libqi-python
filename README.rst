@@ -57,7 +57,7 @@ following way:
 .. code-block:: console
 
   # install/upgrade Conan 2
-  pip install --upgrade conan~=2
+  pip install --upgrade conan==2.10
   # create a default profile
   conan profile detect
 
@@ -75,7 +75,7 @@ first get and export the `libqi` recipe into your local Conan cache.
 
   # GitHub is available, but you can also use internal GitLab.
   QI_REPOSITORY="https://github.com/aldebaran/libqi.git"
-  QI_VERSION="4.0.1" # Checkout the version your project need.
+  QI_VERSION="4.0.3" # Checkout the version your project need.
   QI_PATH="$HOME/libqi" # Or whatever path you want.
   git clone \
     --depth=1 `# Only fetch one commit.` \
@@ -87,7 +87,7 @@ first get and export the `libqi` recipe into your local Conan cache.
                               # versions of libqi require it
                               # because of a bug.
 
-You can then install the `libqi-python` dependencies in Conan.
+You need to navigate to the ``${HOME}/libqi`` directory and install libqi dependencies.
 
 .. code-block:: console
 
@@ -109,6 +109,14 @@ calling:
 .. code-block:: console
 
   cmake --list-presets
+
+Navigate back to the ``libqi-python`` directory
+
+Now from here you have two options, either to develop the project with only **C++** bindings or 
+as a **wheel** to run with python 
+
+C++ Bindings
+------------
 
 Here, we'll assume that the preset is named `conan-linux-x86_64-gcc-debug`.
 To start building, you need to configure with CMake and then build:
