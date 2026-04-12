@@ -37,6 +37,8 @@ classifiers=[
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
 ]
 maintainers = [
@@ -64,4 +66,4 @@ build-frontend = "build"
 before-all = ["ci/cibuildwheel_linux_before_all.sh {package}"]
 
 [tool.cibuildwheel.linux.config-settings]
-"cmake.args" = ["--preset=conan-release"]
+"cmake.args" = ["-DCMAKE_TOOLCHAIN_FILE=/conan-generators/build/release/generators/conan_toolchain.cmake", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_PREFIX_PATH=/conan-generators/build/release/generators"]

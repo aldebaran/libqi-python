@@ -116,8 +116,13 @@ boost::optional<T> extractKeywordArg(pybind11::dict kwargs,
 /// finalizing or not.
 inline boost::optional<bool> interpreterIsFinalizing()
 {
-// `_Py_IsFinalizing` is only available on CPython 3.7+
-#if PY_VERSION_HEX >= 0x03070000
+// `_Py_IsFinalizing` was a private CPython API available since 3.7.
+// It was removed in Python 3.13 (replaced by the public `Py_IsFinalizing`).
+// `Py_IsFinalizing` is the public API, available since CPython 3.9,
+// but only guaranteed visible outside of Py_LIMITED_API mode from 3.13.
+#if PY_VERSION_HEX >= 0x030d0000
+  return boost::make_optional(Py_IsFinalizing() != 0);
+#elif PY_VERSION_HEX >= 0x03070000
   return boost::make_optional(_Py_IsFinalizing() != 0);
 #else
   // There is no way of knowing on older versions.

@@ -6,7 +6,7 @@ PACKAGE=$1
 pip install 'conan>=2' 'cmake>=3.23' ninja
 
 # Perl dependencies required to build OpenSSL.
-yum install -y perl-IPC-Cmd perl-Digest-SHA
+yum install -y perl-IPC-Cmd perl-Digest-SHA perl-Time-Piece
 
 # Install Conan configuration.
 conan profile detect
@@ -26,4 +26,8 @@ conan export /work/libqi
 # This is because the GLIBC from the manylinux images are often older than the
 # ones that were used to build the precompiled binaries, which means the binaries
 # cannot by executed.
-conan install "$PACKAGE" --build="*" --profile:all default --profile:all cppstd17
+#
+# Use a fixed output folder so that the generated toolchain file path is
+# predictable and can be referenced by scikit-build-core.
+conan install "$PACKAGE" --build="*" --profile:all default --profile:all cppstd17 \
+    --output-folder=/conan-generators
